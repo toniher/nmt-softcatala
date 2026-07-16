@@ -6,5 +6,5 @@ COPY serving/translate-service/docker/entry-point.sh /srv/
 COPY serving/translate-service/docker/entry-point-test.sh /srv/
 RUN pip install -r /srv/api-tst/requirements.txt
 
-ENTRYPOINT bash /srv/entry-point-test.sh
+ENTRYPOINT ["bash", "/srv/entry-point-test.sh"]
 

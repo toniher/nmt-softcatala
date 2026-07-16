@@ -14,6 +14,13 @@ services:
         CTRANSLATE_INTER_THREADS: 1
         CTRANSLATE_INTRA_THREADS: 6
 
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u, sys; sys.exit(0 if u.urlopen('http://localhost:8700/health', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   translate-batch:
     image: translate-batch:latest
     restart: always
@@ -21,6 +28,13 @@ services:
     volumes:
       - traductor-files:/srv/data
       - ./models-data:/srv/models:ro
+
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import glob, sys; sys.exit(0 if any(b'process-batch.py' in open(f, 'rb').read() for f in glob.glob('/proc/[0-9]*/cmdline')) else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 # Compose creates a default network automatically, so nothing extra is needed.
 # In production the services join a shared external network. To do the same,

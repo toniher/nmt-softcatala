@@ -1,3 +1,4 @@
+#!/bin/bash
 UPLOAD_FOLDER=/srv/data/files/
 SAVED_TEXTS=/srv/data/saved/
 mkdir -p $UPLOAD_FOLDER

@@ -1,4 +1,4 @@
-FROM python:3.12.9-slim-bookworm as copied_files
+FROM python:3.12.9-slim-bookworm AS copied_files
 
 COPY serving/translate-service/*.py /srv/
 COPY serving/translate-service/docker/entry-point.sh /srv/
@@ -22,5 +22,5 @@ COPY --from=copied_files /srv/ /srv/
 
 EXPOSE 8700
 
-ENTRYPOINT /srv/entry-point.sh
+ENTRYPOINT ["/srv/entry-point.sh"]
 

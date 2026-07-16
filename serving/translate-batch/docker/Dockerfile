@@ -1,4 +1,4 @@
-FROM python:3.12.9-slim-bookworm as copied_files
+FROM python:3.12.9-slim-bookworm AS copied_files
 
 COPY serving/translate-batch/requirements.txt /srv/
 COPY serving/translate-batch/*.py /srv/
@@ -19,5 +19,5 @@ COPY use-models-tools/ /use-models-tools/
 RUN pip3 install -r requirements.txt
 RUN rm -r -f use-models-tools/
 
-ENTRYPOINT /srv/entry-point.sh
+ENTRYPOINT ["/srv/entry-point.sh"]
 #ENTRYPOINT bash

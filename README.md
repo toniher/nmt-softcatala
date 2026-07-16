@@ -58,10 +58,10 @@ This is the recommended way to run the translation API. It starts the `translate
    make docker-run-all-services      # runs: docker compose up -d
    ```
 
-   The API is now listening on port **8700**. Test it in your browser or with curl:
+   The API is now listening on port **8700**. Test it with curl (single-quote the URL so your shell doesn't treat `|` as a pipe or expand `!` as history substitution):
 
-   ```
-   http://localhost:8700/translate?langpair=en|ca&q=Hello!
+   ```bash
+   curl 'http://localhost:8700/translate?langpair=en|ca&q=Hello!'
    ```
 
    Follow the logs with `docker compose logs -f` if you want to watch requests.
@@ -82,7 +82,7 @@ If you just want the HTTP API without the batch worker, run the single service d
 make download-models MODELS="eng-cat cat-eng"
 make docker-build-translate-service
 make docker-run-translate-service
-# Open http://localhost:8700/translate?langpair=en|ca&q=Hello!
+curl 'http://localhost:8700/translate?langpair=en|ca&q=Hello!'
 ```
 
 

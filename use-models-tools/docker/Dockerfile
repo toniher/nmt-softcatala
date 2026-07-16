@@ -14,5 +14,5 @@ RUN pip3 install .
 # Models are mounted at runtime under /srv/models, e.g.:
 #   docker run -v "$(pwd)":/srv/files -v /path/to/models-data:/srv/models ...
 
-ENTRYPOINT /srv/entry-point.sh
-#ENTRYPOINT bash
+ENTRYPOINT ["/srv/entry-point.sh"]
+#ENTRYPOINT ["bash"]
