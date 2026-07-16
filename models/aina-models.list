@@ -1,0 +1,16 @@
+# Default set of AINA (Projecte Aina / BSC) translation models to download.
+#
+# One "<huggingface_repo_id> <pair>" per line. The pair is the directory name
+# the model is normalized into and the key the translation service uses when
+# engine=aina is requested (see serving/translate-service/translate-service.py).
+#
+# AINA models are published on HuggingFace as CTranslate2 models (config.json,
+# model.bin, shared_vocabulary.json) plus a SentencePiece model (spm.model).
+# download-aina-models.sh normalizes them into the same on-disk layout the
+# Softcatalà models use, so nmt_sc.ctranslate.CTranslate loads them unchanged.
+#
+# Comment out a line to exclude a model, or use MODELS="eng-cat cat-eng" to
+# download only a subset. See models/download-aina-models.sh.
+
+projecte-aina/aina-translator-en-ca eng-cat
+projecte-aina/aina-translator-ca-en cat-eng

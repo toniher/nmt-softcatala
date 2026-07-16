@@ -1,2 +1,8 @@
 # Locally downloaded translation models (see models/download-models.sh)
 models-data/
+# Locally downloaded AINA models (see models/download-aina-models.sh)
+models-data-aina/
+
+# Python bytecode cache
+__pycache__/
+*.py[cod]

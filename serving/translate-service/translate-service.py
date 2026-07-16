@@ -32,14 +32,20 @@ import logging
 import logging.handlers
 import psutil
 from genderbiasdetection import GenderBiasDetectionFactory
+from engineselector import select_model
 
 app = Flask(__name__)
 CORS(app)
 
 MODELS = '/srv/models/'
+MODELS_AINA = '/srv/models-aina/'
 UPLOAD_FOLDER = '/srv/data/files/'
 SAVED_TEXTS = '/srv/data/saved/'
-openNMTs = {}
+
+# Translation engines (model families), each a dict keyed by ISO 639-3 pair.
+# "softcatala" is the default and the fallback for any other engine.
+DEFAULT_ENGINE = "softcatala"
+ENGINES = {"softcatala": {}, "aina": {}}
 
 LANGUAGE_ALIASES = {
     "eng-cat": ["en|cat", "en|ca", "eng|ca", "eng|cat"],
@@ -57,14 +63,26 @@ total_seconds = 0
 translate_chars = 0
 total_words = 0
 
-def load_models():
-    model_directories = next(os.walk(MODELS))[1]
-    for model_dir in model_directories:
-        print(f"Model dir: {model_dir}")
-        openNMT = CTranslate(f"{MODELS}", model_dir)
-        openNMTs[model_dir] = openNMT
+def _load_engine(engine, models_path):
+    if not os.path.isdir(models_path):
+        print(f"No models for engine '{engine}' at {models_path}, skipping")
+        return
 
-    print(f"{len(openNMTs)} models loaded")
+    model_directories = next(os.walk(models_path))[1]
+    for model_dir in model_directories:
+        print(f"[{engine}] Model dir: {model_dir}")
+        ENGINES[engine][model_dir] = CTranslate(f"{models_path}", model_dir)
+
+    print(f"[{engine}] {len(ENGINES[engine])} models loaded")
+
+
+def load_models():
+    _load_engine("softcatala", MODELS)
+    _load_engine("aina", MODELS_AINA)
+
+
+def _select_model(languages, engine):
+    return select_model(ENGINES, DEFAULT_ENGINE, languages, engine)
 
 
 def init_logging():
@@ -147,6 +165,7 @@ def apertium_translate_process(values):
     text = None
     text = values['q']
     langpair = values['langpair']
+    engine = values.get('engine')
     savetext = 'savetext' in values and values['savetext'] == True
 
     languages = _convert_apertium_languages_aliases_to_iso639_3(langpair)
@@ -157,15 +176,15 @@ def apertium_translate_process(values):
             t = text.replace('\n', '')
             text_file.write(f'{languages}\t{t}\n')
 
-    if languages not in openNMTs:
+    openNMT = _select_model(languages, engine)
+    if openNMT is None:
         result = {}
         result['status'] = "error"
         result['code'] = 400
         result['message'] = "Bad Request"
         result['explanation'] = "No podem traduir en aquest parell de llengües"
         return json_answer(result, 400)
-    
-    openNMT = openNMTs[languages]
+
     translated = openNMT.translate_parallel(text)
 
     result = {}
@@ -213,7 +232,7 @@ def version_api():
 
     result = {}
 
-    for model in openNMTs.values():
+    for model in ENGINES[DEFAULT_ENGINE].values():
         result[model.get_model_name()] = model.get_model_description()
 
     return json_answer(result)
@@ -233,8 +252,8 @@ def upload_file():
     file = request.files['file'] if 'file' in request.files else ""
     email = request.values['email'] if 'email' in request.values else ""
     model_name = request.values['model_name']
-    
-    if model_name not in openNMTs:
+
+    if model_name not in ENGINES[DEFAULT_ENGINE]:
         result = {}
         result['status'] = "error"
         result['code'] = 400
@@ -301,7 +320,7 @@ def list_pairs():
     result = {}
     responseData = []
 
-    for pair in openNMTs.keys():
+    for pair in ENGINES[DEFAULT_ENGINE].keys():
         src, trg = pair.split("-")
 
         pair = { "sourceLanguage": src,

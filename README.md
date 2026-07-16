@@ -36,6 +36,20 @@ make download-models MODELS="eng-cat cat-eng"
 
 Models land in `./models-data/` (one directory per language pair, e.g. `eng-cat`). The download runs inside a throwaway container, so you only need Docker installed. Already-downloaded pairs are skipped, so the command is safe to re-run.
 
+### Optional: AINA models (alternative translation engine)
+
+Besides the Softcatalà models, the API can also serve the [AINA](https://langtech-bsc.gitbook.io/aina-kit/models/models-de-traduccio-automatica) machine translation models built by Projecte Aina (Barcelona Supercomputing Center) and published on HuggingFace. They are downloaded the same way, into a separate `models-data-aina/` directory that is mounted read-only at `/srv/models-aina`:
+
+```bash
+# Download the AINA models listed in models/aina-models.list
+make download-aina-models
+
+# ...or only selected pairs
+make download-aina-models MODELS="eng-cat cat-eng"
+```
+
+AINA models are optional. If you don't download any, the API simply runs with the Softcatalà engine only. Once present, a client can opt into the AINA engine per request by adding `&engine=aina` to `/translate` (see below). When no AINA model exists for the requested language pair, the request automatically falls back to the Softcatalà model; omitting `engine` always uses Softcatalà.
+
 ## Raising the translation API webserver with Docker Compose
 
 This is the recommended way to run the translation API. It starts the `translate-service` webserver (the HTTP API) together with the `translate-batch` worker, exactly as in production, using [`compose.yml`](./compose.yml).
@@ -44,6 +58,9 @@ This is the recommended way to run the translation API. It starts the `translate
 
    ```bash
    make download-models MODELS="eng-cat cat-eng"
+
+   # optional: also download the AINA models (engine=aina)
+   make download-aina-models MODELS="eng-cat cat-eng"
    ```
 
 2. Build the service images:
@@ -64,6 +81,12 @@ This is the recommended way to run the translation API. It starts the `translate
    curl 'http://localhost:8700/translate?langpair=en|ca&q=Hello!'
    ```
 
+   If you downloaded the AINA models, select that engine with the optional `engine` parameter (it falls back to the Softcatalà model when the pair is unavailable):
+
+   ```bash
+   curl 'http://localhost:8700/translate?langpair=en|ca&q=Hello!&engine=aina'
+   ```
+
    Follow the logs with `docker compose logs -f` if you want to watch requests.
 
 4. Stop the services:
@@ -76,13 +99,15 @@ The compose file uses Compose's automatic default network. If you prefer to run 
 
 ### Running only the API webserver
 
-If you just want the HTTP API without the batch worker, run the single service directly (it mounts `./models-data` for you):
+If you just want the HTTP API without the batch worker, run the single service directly (it mounts `./models-data` and, if present, `./models-data-aina` for you):
 
 ```bash
 make download-models MODELS="eng-cat cat-eng"
+make download-aina-models MODELS="eng-cat cat-eng"   # optional (engine=aina)
 make docker-build-translate-service
 make docker-run-translate-service
 curl 'http://localhost:8700/translate?langpair=en|ca&q=Hello!'
+curl 'http://localhost:8700/translate?langpair=en|ca&q=Hello!&engine=aina'   # optional
 ```
 
 
