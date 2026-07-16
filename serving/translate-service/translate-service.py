@@ -302,8 +302,7 @@ def json_answer(data, status = 200):
 
 @app.route('/listLanguageNames', methods=['GET'])
 def list_language_names():
-    languages = request.args.get('languages')
-    languages = languages.split()
+    languages = request.args.get('languages', '').split()
 
     result = {}
     for language in languages:
