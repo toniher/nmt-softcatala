@@ -1,32 +1,34 @@
-build-all: docker-build-models docker-build-use-models-tools docker-build-translate-service docker-build-translate-service-test docker-build-translate-batch
+MODELS_DIR ?= $(PWD)/models-data
 
-docker-build-models:
-	docker build -t nmt-models . -f models/docker/Dockerfile;
+build-all: docker-build-use-models-tools docker-build-translate-service docker-build-translate-service-test docker-build-translate-batch
 
-docker-build-use-models-tools: docker-build-models
+download-models:
+	MODELS="$(MODELS)" MODELS_DIR="$(MODELS_DIR)" ./models/download-models.sh
+
+docker-build-use-models-tools:
 	docker build -t use-models-tools . -f use-models-tools/docker/Dockerfile;
 
-docker-build-translate-service: docker-build-models
+docker-build-translate-service:
 	docker build -t translate-service . -f serving/translate-service/docker/Dockerfile;
 
 docker-build-translate-service-test: docker-build-translate-service
 	docker build -t translate-service-test . -f serving/translate-service/docker/Dockerfile-test;
 
-docker-build-translate-batch: docker-build-models
+docker-build-translate-batch:
 	docker build -t translate-batch . -f serving/translate-batch/docker/Dockerfile;
 
 docker-run-translate-batch:
 	docker volume create traductor-files;
-	docker run -v traductor-files:/srv/data -it --rm translate-batch;
+	docker run -v traductor-files:/srv/data -v "$(MODELS_DIR)":/srv/models:ro -it --rm translate-batch;
 
 docker-run-translate-service:
-	docker run -it --rm -p 8700:8700 translate-service;
+	docker run -it --rm -p 8700:8700 -v "$(MODELS_DIR)":/srv/models:ro translate-service;
 
 docker-run-translate-service-test:
-	docker run -it --rm -p 8700:8700 translate-service-test;
+	docker run -it --rm -p 8700:8700 -v "$(MODELS_DIR)":/srv/models:ro translate-service-test;
 
 docker-run-all-services:
-	docker-compose -f local.yml up;
+	docker compose up -d;
 
 generate-bias-terms:
 	cd gender-bias-detection/ &&  python3 extract-terms.py

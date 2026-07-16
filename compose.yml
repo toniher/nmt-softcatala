@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   translate-service:
     image: translate-service:latest
@@ -9,6 +7,7 @@ services:
 
     volumes:
       - traductor-files:/srv/data
+      - ./models-data:/srv/models:ro
 
     environment:
         CTRANSLATE_BEAM_SIZE: 2
@@ -21,12 +20,16 @@ services:
 
     volumes:
       - traductor-files:/srv/data
+      - ./models-data:/srv/models:ro
 
-networks:
-  default:
-    external:
-      name: softcatala
+# Compose creates a default network automatically, so nothing extra is needed.
+# In production the services join a shared external network. To do the same,
+# uncomment the block below (and create it once: docker network create softcatala):
+#
+# networks:
+#   default:
+#     name: softcatala
+#     external: true
 
-  
 volumes:
   traductor-files:

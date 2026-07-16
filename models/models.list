@@ -1,0 +1,31 @@
+# Default set of translation models to download.
+#
+# One zip filename per line. The language pair is the first 7 characters of
+# the filename (e.g. "eng-cat"), which is also the directory name the model
+# extracts to and the key the translation service uses.
+#
+# Comment out a line to exclude a model, or use MODELS="eng-cat cat-eng ..."
+# to download only a subset of the pairs listed here. See models/download-models.sh.
+
+cat-deu-2024-10-06.zip
+cat-eng-2024-09-29.zip
+cat-eus-2024-08-12.zip
+cat-fra-2024-08-30.zip
+cat-glg-2024-09-04.zip
+cat-ita-2024-08-30.zip
+cat-jpn-2024-10-08.zip
+cat-nld-2022-11-19.zip
+cat-oci-2022-11-21.zip
+cat-por-2022-11-18.zip
+#cat-spa-2022-11-17.zip
+deu-cat-2024-10-02.zip
+eng-cat-2024-09-24.zip
+eus-cat-2024-08-09.zip
+fra-cat-2024-08-29.zip
+glg-cat-2024-09-03.zip
+ita-cat-2024-08-29.zip
+jpn-cat-2024-10-04.zip
+nld-cat-2022-11-19.zip
+oci-cat-2022-11-17.zip
+por-cat-2022-11-16.zip
+#spa-cat-2022-11-16.zip

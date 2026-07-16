@@ -4,8 +4,6 @@ COPY serving/translate-service/*.py /srv/
 COPY serving/translate-service/docker/entry-point.sh /srv/
 COPY serving/translate-service/???-gender* /srv/
 
-FROM nmt-models as models
-
 FROM python:3.12.9-slim-bookworm
 
 RUN apt-get update -y && apt-get upgrade -y && apt-get install gcc vim git -y
@@ -19,7 +17,8 @@ RUN pip3 install -r requirements.txt
 RUN rm -r -f use-models-tools/
 
 COPY --from=copied_files /srv/ /srv/
-COPY --from=models /srv/models /srv/models
+
+# Models are mounted at runtime under /srv/models (see compose.yml / Makefile).
 
 EXPOSE 8700
 

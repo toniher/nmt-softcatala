@@ -1,4 +1,3 @@
-FROM nmt-models as models
 FROM python:3.12.9-slim-bookworm
 
 RUN apt-get update -y && apt-get upgrade -y && apt-get install gcc vim -y
@@ -12,7 +11,8 @@ COPY use-models-tools/nmt_sc/ /srv/nmt_sc/
 WORKDIR /srv
 RUN pip3 install .
 
-COPY --from=models /srv/models /srv/models
+# Models are mounted at runtime under /srv/models, e.g.:
+#   docker run -v "$(pwd)":/srv/files -v /path/to/models-data:/srv/models ...
 
 ENTRYPOINT /srv/entry-point.sh
 #ENTRYPOINT bash

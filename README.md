@@ -18,19 +18,72 @@ All the Softcatalà built models are available here: https://github.com/Softcata
 
 ## Requirements
 
-You need [Docker](https://www.docker.com/) and [Make](https://www.gnu.org/software/make/) for which there are different implementations depending on your operating system.
+You need [Docker](https://www.docker.com/) (including the Docker Compose plugin, invoked as `docker compose`) and [Make](https://www.gnu.org/software/make/), for which there are different implementations depending on your operating system.
 
-## Serving the models in production
+## How the models are provided
 
-You can build and run the docker translation service:
+The translation models are **not** built into the Docker images. Instead they are downloaded once into a local `models-data/` directory and mounted read-only into the containers at runtime. This keeps the images small and lets you choose exactly which language pairs to include.
 
-* Build the solution ```make build-all```
-* Run ```make docker-run-translate-service```
-* Open in your browser ```http://localhost:8700/translate?langpair=en|ca&q=Hello!```
+Download the models before building or running anything:
 
-To run exactly the system in production you also need ```docker-compose```. You can execute it by running:
+```bash
+# Download the default set of models listed in models/models.list
+make download-models
 
-* ```make docker-run-all-services```
+# ...or download only the language pairs you need
+make download-models MODELS="eng-cat cat-eng"
+```
+
+Models land in `./models-data/` (one directory per language pair, e.g. `eng-cat`). The download runs inside a throwaway container, so you only need Docker installed. Already-downloaded pairs are skipped, so the command is safe to re-run.
+
+## Raising the translation API webserver with Docker Compose
+
+This is the recommended way to run the translation API. It starts the `translate-service` webserver (the HTTP API) together with the `translate-batch` worker, exactly as in production, using [`compose.yml`](./compose.yml).
+
+1. Download the models you want (see above):
+
+   ```bash
+   make download-models MODELS="eng-cat cat-eng"
+   ```
+
+2. Build the service images:
+
+   ```bash
+   make build-all
+   ```
+
+3. Start the services in the background:
+
+   ```bash
+   make docker-run-all-services      # runs: docker compose up -d
+   ```
+
+   The API is now listening on port **8700**. Test it in your browser or with curl:
+
+   ```
+   http://localhost:8700/translate?langpair=en|ca&q=Hello!
+   ```
+
+   Follow the logs with `docker compose logs -f` if you want to watch requests.
+
+4. Stop the services:
+
+   ```bash
+   docker compose down
+   ```
+
+The compose file uses Compose's automatic default network. If you prefer to run the services on a shared external network (as in production), uncomment the `networks` block in [`compose.yml`](./compose.yml).
+
+### Running only the API webserver
+
+If you just want the HTTP API without the batch worker, run the single service directly (it mounts `./models-data` for you):
+
+```bash
+make download-models MODELS="eng-cat cat-eng"
+make docker-build-translate-service
+make docker-run-translate-service
+# Open http://localhost:8700/translate?langpair=en|ca&q=Hello!
+```
 
 
 ## Apertium API
@@ -54,27 +107,50 @@ We confirm that the following tools work using Apertium pluggins:
 
 # Using the models in your machine
 
-This is useful for example if you want to translate large volumes using our prebuild English - Catalan models using the same exact version that we have in production:
+This is useful for example if you want to translate large volumes using our prebuild English - Catalan models using the same exact version that we have in production.
 
-* Build command line tool ```make docker-build-use-models-tools```
+First download the models you need and build the command line tool:
+
+```bash
+make download-models MODELS="eng-cat cat-eng"
+make docker-build-use-models-tools
+```
+
+Every command below mounts your current directory (the files to translate) at `/srv/files` and the downloaded models at `/srv/models`.
 
 To test quickly that everything works:
-* ```echo "Hello World" > input.txt```
-* ```docker run -it -v "$(pwd)":/srv/files/ --env COMMAND_LINE="-f input.txt -t output.txt -m eng-cat" --rm use-models-tools --name use-models-tools```
-* ```more output.txt```
+```bash
+echo "Hello World" > input.txt
+docker run -it --rm \
+  -v "$(pwd)":/srv/files/ \
+  -v "$(pwd)/models-data":/srv/models \
+  --env COMMAND_LINE="-f input.txt -t output.txt -m eng-cat" \
+  use-models-tools
+more output.txt
+```
 
-To translate PO files:
-* File ```ca.po``` is your current directory
-* ```docker run -it -v "$(pwd)":/srv/files/ --env COMMAND_LINE="-f ca.po -m eng-cat" --env FILE_TYPE='po' --rm use-models-tools --name use-models-tools```
-
-The translated file will be ```ca.po-ca.po```
+To translate PO files (with `ca.po` in your current directory):
+```bash
+docker run -it --rm \
+  -v "$(pwd)":/srv/files/ \
+  -v "$(pwd)/models-data":/srv/models \
+  --env COMMAND_LINE="-f ca.po -m eng-cat" --env FILE_TYPE='po' \
+  use-models-tools
+```
+The translated file will be `ca.po-ca.po`.
 
 To translate a text file from Catalan to English:
-* ```echo "Hola món" > input.txt```
-* ```docker run -it -v "$(pwd)":/srv/files/ --env COMMAND_LINE="-f input.txt -t output.txt -m cat-eng" --rm use-models-tools --name use-models-tools```
-* ```more output.txt```
+```bash
+echo "Hola món" > input.txt
+docker run -it --rm \
+  -v "$(pwd)":/srv/files/ \
+  -v "$(pwd)/models-data":/srv/models \
+  --env COMMAND_LINE="-f input.txt -t output.txt -m cat-eng" \
+  use-models-tools
+more output.txt
+```
 
-Note: that the parameter ```-m cat-eng``` indicates the translation model to use.
+Note: the parameter `-m cat-eng` indicates the translation model to use, and it must match a language pair you downloaded into `models-data/`.
 
 # Development
 

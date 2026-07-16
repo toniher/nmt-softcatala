@@ -18,10 +18,15 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
+# Prints the list of available model zip filenames from the published index,
+# in the format expected by models/models.list. Redirect the output to update
+# the manifest when new models are published:
+#
+#   python3 models/generate-manifest.py > models/models.list
+
 from bs4 import BeautifulSoup
 import requests
 import os
-#from urllib.request import Request, urlopen
 from urllib.parse import urlparse
 
 
@@ -33,29 +38,15 @@ def get_list_of_models(url, ext=''):
     soup = BeautifulSoup(page, 'html.parser')
     return [url + node.get('href') for node in soup.find_all('a') if node.get('href').endswith(ext)]
 
-def get_language_pair(url):
-    a = urlparse(url)
-    filename = os.path.basename(a.path)
-    return filename[0:7]
-
 def get_filename(url):
     a = urlparse(url)
     return os.path.basename(a.path)
 
 
-
 def main():
-    print("Builds a Dockerfile with available models")
-
     models = get_list_of_models(URL, EXT)
     for url in models:
-        
-        language_pair = get_language_pair(url)
-        filename = get_filename(url)
-
-        print(f"ENV FILE {filename}")
-        print(f"RUN wget -q $URL/$FILE && unzip $FILE -x */tensorflow/*")
-        print("")
+        print(get_filename(url))
 
 if __name__ == "__main__":
     main()

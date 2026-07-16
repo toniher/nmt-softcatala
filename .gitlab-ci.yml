@@ -1,5 +1,6 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  MODELS_URL: "https://www.softcatala.org/pub/softcatala/opennmt/models/2022-11-22"
 
 
 image: docker:latest
@@ -8,7 +9,6 @@ services:
 
 stages:
   - tests
-  - models
   - translate-service
   - translate-batch
   - use-models-tools
@@ -26,15 +26,6 @@ tests:
     - pip install -r use-models-tools/requirements.txt
     - make run-tests
 
-models:
-  stage: models
-  script:
-    - export REPO_NAME=$CI_REGISTRY_IMAGE/nmt-models
-    - export IMAGE_NAME=$REPO_NAME:$CI_COMMIT_REF_NAME
-    - export DOCKER_PATH=models/docker/Dockerfile
-    - docker build --tag nmt-models --tag $IMAGE_NAME . -f $DOCKER_PATH
-    - docker push $IMAGE_NAME   
-
 translate-service:
   stage: translate-service
   script:
@@ -42,8 +33,6 @@ translate-service:
     - export IMAGE_NAME=$REPO_NAME:$CI_COMMIT_REF_NAME
     - export DOCKER_PATH=serving/translate-service/docker/Dockerfile
     - docker build --tag translate-service -f $DOCKER_PATH --tag $IMAGE_NAME .
-  needs:
-    - models
 
 translate-service-test:
   stage: translate-service
@@ -51,7 +40,17 @@ translate-service-test:
     - export IMAGE_NAME=translate-service-test
     - export DOCKER_PATH=serving/translate-service/docker/Dockerfile-test
     - docker build -f $DOCKER_PATH --tag $IMAGE_NAME .
-    - docker run -t $IMAGE_NAME
+    # Populate a named volume with the models the API tests need (eng-cat, cat-eng).
+    # A named volume (not a host bind-mount) is required so the models are visible
+    # to the docker:dind daemon that runs the test container.
+    - FILES=$(grep -hE '^(eng-cat|cat-eng)-' models/models.list | tr '\n' ' ')
+    - docker volume create models-data
+    - docker run --rm -v models-data:/srv/models -e URL="$MODELS_URL" -e FILES="$FILES"
+      debian:bookworm-slim bash -c 'set -e;
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends wget unzip ca-certificates >/dev/null;
+        cd /srv/models;
+        for f in $FILES; do wget -q "$URL/$f" && unzip -q -o "$f" -x "*/tensorflow/*" && rm -f "$f"; done'
+    - docker run -t -v models-data:/srv/models:ro $IMAGE_NAME
   needs:
     - translate-service
 
@@ -72,8 +71,6 @@ translate-batch:
     - export DOCKER_PATH=serving/translate-batch/docker/Dockerfile
     - docker build -f $DOCKER_PATH --tag $IMAGE_NAME .
     - docker push $IMAGE_NAME
-  needs:
-    - models
 
 use-models-tools:
   stage: use-models-tools
@@ -83,5 +80,3 @@ use-models-tools:
     - export DOCKER_PATH=use-models-tools/docker/Dockerfile
     - docker build -f $DOCKER_PATH --tag latest --tag $IMAGE_NAME .
     - docker push $IMAGE_NAME
-  needs:
-    - models
