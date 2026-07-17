@@ -14,3 +14,15 @@
 
 projecte-aina/aina-translator-en-ca eng-cat
 projecte-aina/aina-translator-ca-en cat-eng
+
+# Additional language pairs (commented out by default)
+#projecte-aina/aina-translator-es-ca spa-cat
+#projecte-aina/aina-translator-ca-es cat-spa
+#projecte-aina/aina-translator-fr-ca fra-cat
+#projecte-aina/aina-translator-ca-fr cat-fra
+#projecte-aina/aina-translator-de-ca deu-cat
+#projecte-aina/aina-translator-ca-de cat-deu
+#projecte-aina/aina-translator-it-ca ita-cat
+#projecte-aina/aina-translator-ca-it cat-ita
+#projecte-aina/aina-translator-pt-ca por-cat
+#projecte-aina/aina-translator-ca-pt cat-por
