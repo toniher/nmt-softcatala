@@ -4,11 +4,11 @@ This repository contains Neural Machine Translation tools and models built at So
 
 # Description of the directories
 
-* *data-processing-tools*: set of data processing tools that convert for different formats to OpenNMT plain text input format
-* *serving*: contains a microservice that provides a translation API for web service and batch file processing.
-* *use-models-tools*: contains tools to use the models to translate text files or PO files
-* *evaluate*: set of tools and corpus to evaluate different translation systems (including BLEU scores)
-* *training*: scripts and configurations to train the models
+* *data-processing-tools*: scripts that convert corpora (TMX, PO, WikiMatrix) into OpenNMT plain-text training format
+* *gender-bias-detection*: scripts that derive the gender-bias term lists used by the translation API
+* *models*: model manifests and download scripts (`models.list`, `aina-models.list`)
+* *serving*: the translation API microservice, plus its batch worker and sample HTML client
+* *use-models-tools*: library and CLI tools to translate text files or PO files with the models
 
 # Models
 
@@ -113,11 +113,9 @@ curl 'http://localhost:8700/translate?langpair=en|ca&q=Hello!&engine=aina'   # o
 
 ## Apertium API
 
-One of the use cases for Machine Translation is to use it to speed up the work of translators.
+Translators can plug machine translation straight into their existing tools. We support the [Apertium Web API](https://wiki.apertium.org/wiki/Apertium-apy), so any tool with Apertium support works against this service.
 
-In order to integrate easily with already existing translation tools we support the [Apertium Web API](https://wiki.apertium.org/wiki/Apertium-apy). This means that you can use any tool that has support for Apertium.
-
-We confirm that the following tools work using Apertium pluggins:
+We've tested these Apertium plugins:
 
 * Okapi Framework
 * OmegaT translation plugin
@@ -132,7 +130,7 @@ We confirm that the following tools work using Apertium pluggins:
 
 # Using the models in your machine
 
-This is useful for example if you want to translate large volumes using our prebuild English - Catalan models using the same exact version that we have in production.
+Use this to translate large volumes with the exact model version running in production.
 
 First download the models you need and build the command line tool:
 
@@ -181,13 +179,12 @@ Note: the parameter `-m cat-eng` indicates the translation model to use, and it 
 
 ## Performance test of the translation service
 
-It is important to understand that there are no major performance regressions.
+Run this before shipping changes that could affect translation speed.
 
-Install the ```wrk``` performance testing tool by using ```sudo apt-get install wrk```
+Install `wrk`: `sudo apt-get install wrk`
 
-Follow these steps:
-* Run ```make docker-run-all-services``` to run all the services for the performance test
-* Use ```serving/perf-tests``` script to run the performance test
+* Run `make docker-run-all-services` to start the services
+* Run the `serving/perf-tests` script against them
 
 # License
 
