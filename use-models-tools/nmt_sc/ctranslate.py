@@ -18,7 +18,6 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-from __future__ import print_function
 import os
 from .texttokenizer import TextTokenizer
 import ctranslate2
@@ -62,26 +61,10 @@ class CTranslate():
 
 
     def _init_read_env_vars(self):
-        if self.INTER_THREADS in os.environ:
-            self.inter_threads = int(os.environ[self.INTER_THREADS])
-        else:
-            self.inter_threads = 1
-
-        if self.INTRA_THREADS in os.environ:
-            self.intra_threads = int(os.environ[self.INTRA_THREADS])
-        else:
-            self.intra_threads = 4
-
-        if self.BEAM_SIZE in os.environ:
-            self.beam_size = int(os.environ[self.BEAM_SIZE])
-        else:
-            self.beam_size = 2
-
-        if self.USE_VMAP in os.environ:
-            self.use_vmap = True
-        else:
-            self.use_vmap = False
-
+        self.inter_threads = int(os.environ.get(self.INTER_THREADS, 1))
+        self.intra_threads = int(os.environ.get(self.INTRA_THREADS, 4))
+        self.beam_size = int(os.environ.get(self.BEAM_SIZE, 2))
+        self.use_vmap = self.USE_VMAP in os.environ
         self.device = os.environ.get(self.DEVICE, "cpu")
 
     def get_model_name(self):
@@ -127,27 +110,14 @@ class CTranslate():
         # Split sentences
         tokenizer = TextTokenizer()
         sentences, translate = tokenizer.tokenize(text, self.tokenizer_language)
-        input_batch = sentences
 
-        num_sentences = len(sentences)
-        sentences_batch = []
-        indexes = []
-        results = ["" for x in range(num_sentences)]
-        for i in range(num_sentences):
-            if translate[i] is False:
-                continue
-
-            sentences_batch.append(sentences[i])
-            indexes.append(i)
-
-        translated_batch = self._translate_batch(sentences_batch)
-        for pos in range(0, len(translated_batch)):
-            i = indexes[pos]
-            results[i] = translated_batch[pos] 
+        indexes = [i for i, ok in enumerate(translate) if ok]
+        results = [""] * len(sentences)
+        for i, translated in zip(indexes, self._translate_batch([sentences[i] for i in indexes])):
+            results[i] = translated
 
         #Rebuild split sentences
-        translated = tokenizer.sentence_from_tokens(sentences, translate, results)
-        return translated
+        return tokenizer.sentence_from_tokens(sentences, translate, results)
 
 
     '''

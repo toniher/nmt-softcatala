@@ -21,8 +21,6 @@
 
 import re
 import string
-from abc import ABC, abstractmethod
-
 class GenderBiasTermsLoader:
     _cached_terms = None
 
@@ -37,29 +35,15 @@ class GenderBiasTermsLoader:
 class GenderBiasDetectionFactory:
     @staticmethod
     def get(languages):
-        if languages == 'eng-cat':
-            return GenderBiasDetection()
+        detector = {'eng-cat': GenderBiasDetection, 'eus-cat': GenderBiasDetectionBasque}.get(languages)
+        return detector() if detector else None
 
-        if languages == 'eus-cat':
-            return GenderBiasDetectionBasque()
-
-        return None
-
-class GenderBiasBase():
-    def get_words(self, sentence):
-        words = self._compute(sentence)
-        return words
-
-    @abstractmethod
-    def _compute(self, sentence):
-        pass
-
-class GenderBiasDetection(GenderBiasBase):
+class GenderBiasDetection:
 
     def __init__(self, terms_file_path="eng-gender-bias-terms.txt"):
         self.terms = GenderBiasTermsLoader.load_terms(terms_file_path)
 
-    def _compute(self, sentence):
+    def get_words(self, sentence):
         words = set()
 
         translator = str.maketrans("", "", string.punctuation)
@@ -71,7 +55,7 @@ class GenderBiasDetection(GenderBiasBase):
         return words
 
 
-class GenderBiasDetectionBasque(GenderBiasBase):
+class GenderBiasDetectionBasque:
 
     class Trie:
 
@@ -81,7 +65,6 @@ class GenderBiasDetectionBasque(GenderBiasBase):
                 self.label = None
 
         def __init__(self):
-            self.dict = {}
             self.root = self.TrieNode()
 
         def insert(self, word, label):
@@ -119,17 +102,14 @@ class GenderBiasDetectionBasque(GenderBiasBase):
 
     def load_data(self, prefixlist):
         with open(self.terms, "r") as fp:
-            cnt = 0
             for line in fp:
                 word, label = line.strip().split("\t")
                 prefixlist.insert(word, label)
-                cnt += 1
 
     #  read regular expressions in a dictionary
     #  and compile them
     def load_regexes(self, suffixlist):
         with open(self.regexs, "r") as fp:
-            cnt = 0
             for line in fp:
                 try:
                     label, regex = line.strip().split("\t")
@@ -140,12 +120,11 @@ class GenderBiasDetectionBasque(GenderBiasBase):
                     suffixlist[label] = re.compile(
                         regex
                     )  # we will compile later for efficiency
-                    cnt += 1
                 except Exception as error:
                     print("Found an error in the regex for suffix " + label + ":")
                     print(error)
             
-    def _compute(self, sentence):
+    def get_words(self, sentence):
         # remove all punctuation using the string library        
         words = list()
         translator = str.maketrans("", "", string.punctuation)

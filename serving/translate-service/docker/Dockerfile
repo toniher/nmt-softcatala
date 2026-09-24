@@ -1,6 +1,7 @@
 FROM python:3.12.9-slim-bookworm AS copied_files
 
 COPY serving/translate-service/*.py /srv/
+COPY serving/translate-batch/batchfilesdb.py /srv/
 COPY serving/translate-service/docker/entry-point.sh /srv/
 COPY serving/translate-service/???-gender* /srv/
 

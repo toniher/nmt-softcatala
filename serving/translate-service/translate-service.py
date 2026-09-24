@@ -18,7 +18,6 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-from __future__ import print_function
 from flask import Flask, request, Response
 from flask_cors import CORS
 import json
@@ -81,26 +80,13 @@ def load_models():
     _load_engine("aina", MODELS_AINA)
 
 
-def _select_model(languages, engine):
-    return select_model(ENGINES, DEFAULT_ENGINE, languages, engine)
 
-
-def init_logging():
-    logfile = 'translate-service.log'
-
-    LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
-    logger = logging.getLogger()
-    hdlr = logging.handlers.RotatingFileHandler(logfile, maxBytes=1024*1024, backupCount=1)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    hdlr.setFormatter(formatter)
-    logger.addHandler(hdlr)
-    logger.setLevel(LOGLEVEL)
-
-    console = logging.StreamHandler()
-    console.setLevel(LOGLEVEL)
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    console.setFormatter(formatter)
-    logger.addHandler(console)
+def init_logging(logfile):
+    logging.basicConfig(
+        level=os.environ.get('LOGLEVEL', 'INFO').upper(),
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[logging.handlers.RotatingFileHandler(logfile, maxBytes=1024*1024, backupCount=1),
+                  logging.StreamHandler()])
 
 
 @app.route('/translate', methods=['GET'])
@@ -176,14 +162,9 @@ def apertium_translate_process(values):
             t = text.replace('\n', '')
             text_file.write(f'{languages}\t{t}\n')
 
-    openNMT = _select_model(languages, engine)
+    openNMT = select_model(ENGINES, DEFAULT_ENGINE, languages, engine)
     if openNMT is None:
-        result = {}
-        result['status'] = "error"
-        result['code'] = 400
-        result['message'] = "Bad Request"
-        result['explanation'] = "No podem traduir en aquest parell de llengües"
-        return json_answer(result, 400)
+        return _bad_request("No podem traduir en aquest parell de llengües")
 
     translated = openNMT.translate_parallel(text)
 
@@ -254,28 +235,13 @@ def upload_file():
     model_name = request.values['model_name']
 
     if model_name not in ENGINES[DEFAULT_ENGINE]:
-        result = {}
-        result['status'] = "error"
-        result['code'] = 400
-        result['message'] = "Bad Request"
-        result['explanation'] = "No podem traduir en aquest parell de llengües"
-        return json_answer(result, 400)
+        return _bad_request("No podem traduir en aquest parell de llengües")
 
     if file == "" or file.filename == "":
-        result = {}
-        result['status'] = "error"
-        result['code'] = 400
-        result['message'] = "Bad Request"
-        result['explanation'] = "No s'ha especificat el fitxer"
-        return json_answer(result, 400)
+        return _bad_request("No s'ha especificat el fitxer")
 
     if email == "":
-        result = {}
-        result['status'] = "error"
-        result['code'] = 400
-        result['message'] = "Bad Request"
-        result['explanation'] = "No s'ha especificat el correu"
-        return json_answer(result, 400)
+        return _bad_request("No s'ha especificat el correu")
 
     if file and _allowed_file(file.filename):
         filename = uuid.uuid4().hex
@@ -294,23 +260,21 @@ def upload_file():
     return json_answer(result, 500)
 
 
+def _bad_request(explanation):
+    return json_answer({"status": "error", "code": 400, "message": "Bad Request", "explanation": explanation}, 400)
+
+
 def json_answer(data, status = 200):
     json_data = json.dumps(data, indent=4, separators=(',', ': '))
     resp = Response(json_data, mimetype='application/json', status = status)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
     return resp
 
 @app.route('/listLanguageNames', methods=['GET'])
 def list_language_names():
     languages = request.args.get('languages', '').split()
 
-    result = {}
-    for language in languages:
-        if language == 'cat':
-            result['cat'] = 'Catalan'
-        elif language == 'eng':
-            result['eng'] = 'English'
-
+    names = {'cat': 'Catalan', 'eng': 'English'}
+    result = {language: names[language] for language in languages if language in names}
     return json_answer(result, 200)
 
 @app.route('/listPairs', methods=['GET'])
@@ -333,10 +297,10 @@ def list_pairs():
 
 if __name__ == '__main__':
 #    app.debug = True
-    init_logging()
+    init_logging('translate-service.log')
     load_models()
     app.run()
 
 if __name__ != '__main__':
     load_models()
-    init_logging()
+    init_logging('translate-service.log')

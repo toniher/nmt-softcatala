@@ -18,7 +18,6 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-from __future__ import print_function
 import logging
 import logging.handlers
 import os
@@ -31,23 +30,12 @@ from email.mime.text import MIMEText
 
 TRANSLATION_MODELS = '/srv/models/'
 
-def init_logging():
-
-    logfile = 'process-batch.log'
-
-    LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
-    logger = logging.getLogger()
-    hdlr = logging.handlers.RotatingFileHandler(logfile, maxBytes=1024*1024, backupCount=1)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    hdlr.setFormatter(formatter)
-    logger.addHandler(hdlr)
-    logger.setLevel(LOGLEVEL)
-
-    console = logging.StreamHandler()
-    console.setLevel(LOGLEVEL)
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    console.setFormatter(formatter)
-    logger.addHandler(console)
+def init_logging(logfile):
+    logging.basicConfig(
+        level=os.environ.get('LOGLEVEL', 'INFO').upper(),
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[logging.handlers.RotatingFileHandler(logfile, maxBytes=1024*1024, backupCount=1),
+                  logging.StreamHandler()])
 
 def send_email(translated_file, email, attachment):
     try:
@@ -88,12 +76,8 @@ def send_email(translated_file, email, attachment):
 MAX_SIZE = 8192 * 1024
 
 def truncate_file(filename):
-    file_size = os.path.getsize(filename)
-
-    if file_size > MAX_SIZE:
-        f = open(filename, "a")
-        f.truncate(MAX_SIZE)
-        f.close()
+    if os.path.getsize(filename) > MAX_SIZE:
+        os.truncate(filename, MAX_SIZE)
 
 def _is_po_file(filename):
 
@@ -130,7 +114,7 @@ def _is_po_file(filename):
 def main():
 
     print("Process batch files to translate")
-    init_logging()
+    init_logging('process-batch.log')
     db = BatchFilesDB()
 
     while True:

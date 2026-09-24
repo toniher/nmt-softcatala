@@ -19,64 +19,31 @@
 
 import os
 import uuid
-import fnmatch
+from collections import namedtuple
 
+BatchFile = namedtuple("BatchFile", ["filename_dbrecord", "filename", "email", "model_name"])
 
-class BatchFile():
-    def __init__(self, filename_dbrecord, filename, email, model_name):
-        self.filename_dbrecord = filename_dbrecord
-        self.filename = filename
-        self.email = email
-        self.model_name = model_name
 
 class BatchFilesDB():
 
     ENTRIES = '/srv/data/entries'
     SEPARATOR = "\t"
-    g_check_directory = True
-
 
     def create(self, filename, email, model_name):
-        if self.g_check_directory:
-            self.g_check_directory = False
-            if not os.path.exists(self.ENTRIES):
-                os.makedirs(self.ENTRIES)
-
-        filename_dbrecord = str(uuid.uuid4())
-        filename_dbrecord = os.path.join(self.ENTRIES, filename_dbrecord)
-
+        os.makedirs(self.ENTRIES, exist_ok=True)
+        filename_dbrecord = os.path.join(self.ENTRIES, str(uuid.uuid4()))
         with open(filename_dbrecord, "w") as fh:
-            line = f"{filename}{self.SEPARATOR}{email}{self.SEPARATOR}{model_name}"
-            fh.write(line)
+            fh.write(self.SEPARATOR.join([filename, email, model_name]))
 
         return filename_dbrecord
 
-    def _find(self, directory, pattern):
-        filelist = []
-
-        for root, dirs, files in os.walk(directory):
-            for basename in files:
-                if fnmatch.fnmatch(basename, pattern):
-                    filename = os.path.join(root, basename)
-                    filelist.append(filename)
-
-        return filelist
-
     def _read_record(self, filename_dbrecord):
         with open(filename_dbrecord, "r") as fh:
-            line = fh.readline()
-            components = line.split(self.SEPARATOR)
-            return BatchFile(filename_dbrecord, components[0], components[1], components[2])
+            return BatchFile(filename_dbrecord, *fh.readline().split(self.SEPARATOR)[:3])
 
     def select(self):
-        filenames = self._find(self.ENTRIES, "*")
-        records = []
-        for filename in filenames:
-            record = self._read_record(filename)
-            records.append(record)
-
-        return records
+        os.makedirs(self.ENTRIES, exist_ok=True)
+        return [self._read_record(os.path.join(self.ENTRIES, name)) for name in os.listdir(self.ENTRIES)]
 
     def delete(self, filename):
         os.remove(filename)
-

@@ -18,7 +18,6 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-from __future__ import print_function
 from .srx_segmenter import SrxSegmenter, parse
 import os
 
@@ -51,12 +50,4 @@ class TextTokenizer:
         return strings, translate
 
     def sentence_from_tokens(self, sentences, translate, translated):
-        num_sentences = len(sentences)
-        translation = ''
-        for i in range(0, num_sentences):
-            if translate[i] is True:
-                translation += translated[i]
-            else:
-                translation += sentences[i]
-
-        return translation.strip()
+        return "".join(t if ok else s for s, ok, t in zip(sentences, translate, translated)).strip()

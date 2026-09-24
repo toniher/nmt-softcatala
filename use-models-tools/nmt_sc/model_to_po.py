@@ -18,25 +18,12 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-from __future__ import print_function
 import datetime
 import polib
 from shutil import copyfile
-import os
-from optparse import OptionParser
 import logging
 from .ctranslate import CTranslate
-
-def init_logging(del_logs):
-    logfile = 'model-to-po.log'
-
-    if del_logs and os.path.isfile(logfile):
-        os.remove(logfile)
-
-    logger = logging.getLogger()
-    hdlr = logging.FileHandler(logfile)
-    logger.addHandler(hdlr)
-    logger.setLevel(logging.WARNING)
+from ._cli import init_logging, base_parser
 
 def _clean_string(result):
     CHARS = (
@@ -49,52 +36,12 @@ def _clean_string(result):
 
 
 def read_parameters():
-    parser = OptionParser()
-
-    parser.add_option(
-        '-m',
-        '--model_name',
-        type='string',
-        action='store',
-        default='eng-cat',
-        dest='model_name',
-        help="Translation model name. For example 'eng-cat' or 'cat-eng'"
-    )
-
-    parser.add_option(
-        '-f',
-        '--po-file',
-        type='string',
-        action='store',
-        dest='po_file',
-        help='PO File to translate'
-    )
-
-    parser.add_option(
-        '-t',
-        '--translated-file',
-        type='string',
-        action='store',
-        dest='translated_file',
-        default='',
-        help='Name of the translated file'
-    )
-
-    parser.add_option(
-        '-x',
-        '--models',
-        type='string',
-        action='store',
-        dest='models_path',
-        default='',
-        help='Path the model directory'
-    )
-
+    parser = base_parser('--po-file', 'PO File to translate')
     (options, args) = parser.parse_args()
-    if options.po_file is None:  # if filename is not given
+    if options.input_file is None:  # if filename is not given
         parser.error('PO file not given')
 
-    return options.model_name, options.po_file, options.translated_file,\
+    return options.model_name, options.input_file, options.translated_file or '',\
            options.models_path
 
 def _translate(openNMT, src_org):
@@ -111,7 +58,7 @@ def main():
     print("Applies a OpenNMT model to translate a PO file")
     start_time = datetime.datetime.now()
 
-    init_logging(True)
+    init_logging('model-to-po.log')
     model_name, input_filename, target_filename, models_path = read_parameters()
 
     if len(target_filename) == 0:

@@ -1,3 +1,2 @@
-polib==1.2.0
 ./../use-models-tools
 

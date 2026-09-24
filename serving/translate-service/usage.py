@@ -18,9 +18,7 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-import os
 import datetime
-from shutil import copyfile
 import logging
 
 '''
@@ -55,43 +53,24 @@ class Usage(object):
             logging.error("log. Error:" + str(exception))
             pass
 
-    def _get_line_components(self, line):
-        components = line.strip().split("\t")
-        return components[0], components[1], components[2], components[3], components[4]
-
-    def _init_stats_dict(self, dictionary):
-        dictionary["calls"] = 0
-        dictionary["words"] = 0
-        dictionary["time_used"] = 0
-        dictionary["files"] = 0
-        return dictionary
-
     def get_stats(self, date_requested):
         results = {}
         try:
             with open(self.FILE, "r") as file_in:
                 for line in file_in:
-                    date_component, model_component, words_component, time_component, _type = self._get_line_components(line)
-
-                    if model_component in results:
-                        stats = results[model_component]
-                    else:
-                        stats = {}
-                        results[model_component] = self._init_stats_dict(stats)
-                    
-                    datetime_no_newline = date_component
-                    line_datetime = datetime.datetime.strptime(datetime_no_newline, '%Y-%m-%d %H:%M:%S')
+                    date_component, model_component, words_component, time_component, _type = line.strip().split("\t")
+                    stats = results.setdefault(model_component, {"calls": 0, "words": 0, "time_used": 0, "files": 0})
+                    line_datetime = datetime.datetime.strptime(date_component, '%Y-%m-%d %H:%M:%S')
                     if line_datetime.date() == date_requested.date():
                         if _type == 'file':
-                            stats["files"] = stats["files"] + 1
+                            stats["files"] += 1
                         else:
-                            stats["calls"] = stats["calls"] + 1
-                            stats["words"] = stats["words"] + int(words_component)
-                            stats["time_used"] = stats["time_used"] + float(time_component)
+                            stats["calls"] += 1
+                            stats["words"] += int(words_component)
+                            stats["time_used"] += float(time_component)
 
         except Exception as exception:
             logging.error("get_stats. Error:" + str(exception))
-            pass
 
         return results
 
@@ -112,14 +91,8 @@ class Usage(object):
         return line_datetime < self._get_time_now() - datetime.timedelta(days = self.DAYS_TO_KEEP)
 
     def _rotate_file(self):
-        TEMP = "usage.bak"
-        directory = os.path.dirname(os.path.abspath(self.FILE))
-        temp_file = os.path.join(directory, TEMP)
+        with open(self.FILE, "r") as f:
+            lines = [line for line in f if not self._is_old_line(line)]
 
-        copyfile(self.FILE, temp_file)
-
-        with open(temp_file, "r") as temp:
-            with open(self.FILE, "w") as new:
-                for line in temp:
-                    if self._is_old_line(line) is False:
-                        new.write(line)
+        with open(self.FILE, "w") as f:
+            f.writelines(lines)

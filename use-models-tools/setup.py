@@ -11,7 +11,6 @@ def parse_requirements(filename):
 
 setup(
     name="use_models_tools",
-    py_modules=["nmt_sc"],
     version="1.0.0",
     description="Softcatalà neuronal machine translation library",
     url="https://github.com/Softcatala/nmt-softcatala",

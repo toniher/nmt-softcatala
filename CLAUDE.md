@@ -23,7 +23,7 @@ Two model families ("engines") are supported by the translate-service: the defau
 
 ## Build and run
 
-Requires Docker and Make. Image builds no longer download models — build is fast and model download is a separate, one-time step.
+Requires Docker and Make. Image builds don't download models — build is fast and model download is a separate, one-time step.
 
 ```bash
 # 1. Download models into ./models-data (default set from models/models.list)
