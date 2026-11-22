@@ -10,7 +10,10 @@ services:
       - ./models-data:/srv/models:ro
       - ./models-data-aina:/srv/models-aina:ro
 
+    # Process/thread layout: tune for the host with serving/TUNING.md and serving/perf-tests/tune.sh
     environment:
+        GUNICORN_WORKERS: 2
+        GUNICORN_THREADS: 4
         CTRANSLATE_BEAM_SIZE: 2
         CTRANSLATE_INTER_THREADS: 1
         CTRANSLATE_INTRA_THREADS: 6

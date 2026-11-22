@@ -186,6 +186,13 @@ Install `wrk`: `sudo apt-get install wrk`
 * Run `make docker-run-all-services` to start the services
 * Run the `serving/perf-tests` script against them
 
+## Tuning for a host
+
+How many processes and threads to use depends on the host's CPUs and memory. See
+[serving/TUNING.md](serving/TUNING.md) for the settings, starting points by host size and
+reference measurements. `serving/perf-tests/tune.sh` benchmarks candidate layouts on the
+host itself, and needs only Docker.
+
 # License
 
 See [license](./LICENSE.md)
