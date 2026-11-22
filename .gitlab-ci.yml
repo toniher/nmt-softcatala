@@ -41,10 +41,10 @@ translate-service-test:
     - export IMAGE_NAME=translate-service-test
     - export DOCKER_PATH=serving/translate-service/docker/Dockerfile-test
     - docker build -f $DOCKER_PATH --tag $IMAGE_NAME .
-    # Populate a named volume with the models the API tests need (eng-cat, cat-eng).
+    # Populate a named volume with the models the API tests need (eng-cat, cat-eng, and eus-cat for a non-English source + Basque gender bias).
     # A named volume (not a host bind-mount) is required so the models are visible
     # to the docker:dind daemon that runs the test container.
-    - FILES=$(grep -hE '^(eng-cat|cat-eng)-' models/models.list | tr '\n' ' ')
+    - FILES=$(grep -hE '^(eng-cat|cat-eng|eus-cat)-' models/models.list | tr '\n' ' ')
     - docker volume create models-data
     - docker run --rm -v models-data:/srv/models -e URL="$MODELS_URL" -e FILES="$FILES"
       debian:bookworm-slim bash -c 'set -e;

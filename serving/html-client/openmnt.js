@@ -15,6 +15,28 @@ var HttpClient = function() {
     }
 }
 
+// Fill both language-pair selects from the pairs the service actually has loaded.
+function load_pairs() {
+    var client = new HttpClient();
+    client.get(URL + '/listPairs', function(response) {
+        var pairs = JSON.parse(response)['responseData'];
+        var codes = [...new Set(pairs.flatMap(p => [p.sourceLanguage, p.targetLanguage]))];
+
+        client.get(URL + '/listLanguageNames?locale=ca&languages=' + codes.join('+'), function(response) {
+            var names = JSON.parse(response);
+            var name = code => names[code] || code;
+
+            pairs.forEach(function(p) {
+                var label = name(p.sourceLanguage) + ' - ' + name(p.targetLanguage);
+                document.getElementById('languages').add(new Option(label, p.sourceLanguage + '|' + p.targetLanguage));
+                document.getElementById('model_name').add(new Option(label, p.sourceLanguage + '-' + p.targetLanguage));
+            });
+        });
+    });
+}
+
+window.addEventListener('DOMContentLoaded', load_pairs);
+
 function show_version() {
     url = URL + `/version/`;
 
@@ -80,7 +102,7 @@ function sendFile()
             else
             {
                 json = JSON.parse(xmlHttp.responseText);
-                alert(json['error']);
+                alert(json['explanation'] || json['error']);
             }
         }
 

@@ -73,7 +73,7 @@ cd use-models-tools && python -m nose2 tests.testctranslate
 cd serving/translate-service && python -m nose2 tests.testgenderbiasdetection.TestGenderBiasDetection.test_some_case
 ```
 nose2 is not in the component `requirements.txt` files; install it separately (`pip install nose2`), as CI does. `serving/translate-service/api-tst/test-apertium.py` is a separate API test that hits a running service at `http://127.0.0.1:8700` (start it with `make docker-run-translate-service` first); it is not part of `make run-tests`.
-CI (`.gitlab-ci.yml`) runs the same tests against `python:3.12.9-slim-bookworm` before any Docker images are built, then builds/pushes `translate-service` → `translate-batch` / `use-models-tools`. The `translate-service-test` job needs real models to translate: because it runs under `docker:dind` (where host bind-mounts aren't visible to the daemon), it downloads `eng-cat`/`cat-eng` into a **named volume** and mounts that into the test container, rather than using `models-data/`.
+CI (`.gitlab-ci.yml`) runs the same tests against `python:3.12.9-slim-bookworm` before any Docker images are built, then builds/pushes `translate-service` → `translate-batch` / `use-models-tools`. The `translate-service-test` job needs real models to translate: because it runs under `docker:dind` (where host bind-mounts aren't visible to the daemon), it downloads `eng-cat`/`cat-eng`/`eus-cat` into a **named volume** and mounts that into the test container, rather than using `models-data/`.
 
 ## Key conventions
 

@@ -7,7 +7,7 @@
 <body>
 
     <form>
-    <p>Language pair: <input id="languages" value="eng|cat"></a>
+    <p>Language pair: <select id="languages"></select></p>
     </form>
 
     <form><p>Text</p> 
@@ -23,12 +23,9 @@
     <p><b>Traducció de fitxers de text</b></p>
     <p>També pots enviar-nos un fitxer en format de text pla.</p>
 
-    <form id="form-id" method=post enctype=multipart/form-data">
+    <form id="form-id" method="post" enctype="multipart/form-data">
     <p>Traducció: 
-     <select id="model_name" name="model_name">
-      <option value="eng-cat">Anglès - català</option>
-      <option value="cat-eng">Català - Anglès</option>
-    </select>
+     <select id="model_name" name="model_name"></select>
     </p>
     <p>
      <label for="email">Correu on voleu que us enviem la traducció:</label>

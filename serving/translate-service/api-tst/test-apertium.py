@@ -73,6 +73,21 @@ class TestApertium(TestCase):
         self.assertEqual(self.OK, response.status_code)
         self.assertEqual("Good morning", response.json()['responseData']['translatedText'][:12])
 
+    def test_translate_get_basque_two_letter_codes(self):
+        response = requests.get(self.URL + self.TRANSLATE, params={"langpair": "eu|ca", "q": "Kaixo, zer moduz?"})
+
+        self.assertEqual(self.OK, response.status_code)
+        self.assertEqual("Hola", response.json()['responseData']['translatedText'][:4])
+        self.assertNotIn('message', response.json())
+
+    def test_translate_get_basque_gender_bias_message(self):
+        q = "Bingen Zupiria Segurtasun sailburuak Euskadi Irratian iragarri du."
+        response = requests.get(self.URL + self.TRANSLATE, params={"langpair": "eu|ca", "q": q})
+
+        self.assertEqual(self.OK, response.status_code)
+        self.assertIn("en basc", response.json()['message'])
+        self.assertIn("«sailburuak»", response.json()['message'])
+
     def test_translate_get(self):
 
         text = urllib.parse.quote_plus(self.SOURCE.encode('utf-8'))
