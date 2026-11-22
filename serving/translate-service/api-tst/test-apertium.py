@@ -88,6 +88,16 @@ class TestApertium(TestCase):
         self.assertIn("en basc", response.json()['message'])
         self.assertIn("«sailburuak»", response.json()['message'])
 
+    def test_translate_keeps_code_and_identifiers(self):
+        # Issue #39: characters missing from the model's vocabulary (` _ @ ...) used to be mangled.
+        spans = ["``ubports/24.6.x``", "``morph-browser``", "``24.6.x_-_PR_morph-browser_125``", "user@example.com"]
+        q = (f"An MR numbered 125 made against the {spans[0]} branch of Git repository {spans[1]} "
+             f"will have an APT archive named {spans[2]}. Ask {spans[3]} for help.")
+        response = requests.get(self.URL + self.TRANSLATE, params={"langpair": "en|ca", "q": q})
+        translated = response.json()["responseData"]["translatedText"]
+        for span in spans:
+            self.assertIn(span, translated)
+
     def test_translate_post_text_too_long(self):
         response = requests.post(self.URL + self.TRANSLATE + "/", data={"langpair": "en|ca", "q": "a" * 20001})
 
