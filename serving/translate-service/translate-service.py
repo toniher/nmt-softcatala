@@ -40,7 +40,6 @@ CORS(app)
 MODELS = '/srv/models/'
 MODELS_AINA = '/srv/models-aina/'
 UPLOAD_FOLDER = '/srv/data/files/'
-SAVED_TEXTS = '/srv/data/saved/'
 
 # Translation engines (model families), each a dict keyed by ISO 639-3 pair.
 # "softcatala" is the default and the fallback for any other engine.
@@ -146,7 +145,6 @@ def _get_bias_message_if_needed(languages, text, result):
 def apertium_translate_process(values):
     global translate_calls, translate_chars, total_seconds, total_words
 
-    translate_calls += 1
     start_time = datetime.datetime.now()
 
     text = values.get('q')
@@ -155,15 +153,7 @@ def apertium_translate_process(values):
         return _bad_request("Cal especificar els paràmetres 'q' i 'langpair'")
 
     engine = values.get('engine')
-    savetext = 'savetext' in values and values['savetext'] == True
-
     languages = _convert_apertium_languages_aliases_to_iso639_3(langpair)
-
-    if savetext:
-        saved_filename = os.path.join(SAVED_TEXTS, "source.txt")
-        with open(saved_filename, "a") as text_file:
-            t = text.replace('\n', '')
-            text_file.write(f'{languages}\t{t}\n')
 
     openNMT = select_model(ENGINES, DEFAULT_ENGINE, languages, engine)
     if openNMT is None:
@@ -179,6 +169,7 @@ def apertium_translate_process(values):
     usage = Usage()
     usage.log(languages, words, time_used, 'form')
 
+    translate_calls += 1
     total_seconds += (time_used).total_seconds()
     total_words += words
     translate_chars += len(text)
@@ -190,12 +181,6 @@ def apertium_translate_process(values):
     result['responseData'] = responseData
     result['time'] = str(time_used)
     return json_answer(result)
-
-@app.route('/savedtexts/', methods=['GET'])
-def savedtexts():
-    saved_filename = os.path.join(SAVED_TEXTS, "source.txt")
-    with open(saved_filename, "r") as text_file:
-        return Response(text_file.read(), mimetype='text/plain')
 
 @app.route('/stats/', methods=['GET'])
 def stats():
@@ -251,21 +236,16 @@ def upload_file():
     if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
         return _bad_request("El correu no és vàlid")
 
-    if file and _allowed_file(file.filename):
-        filename = uuid.uuid4().hex
-        fullname = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(fullname)
+    if not _allowed_file(file.filename):
+        return _bad_request("Només s'admeten fitxers .txt i .po")
 
-        save_file_to_process(fullname, email, model_name)
-        logging.debug("Saved file {0}".format(fullname))
-        result = []
-        usage = Usage()
-        usage.log(model_name, 0, datetime.timedelta(), 'file')
-        return json_answer(result)
+    fullname = os.path.join(UPLOAD_FOLDER, uuid.uuid4().hex)
+    file.save(fullname)
 
-    result = {}
-    result['error'] = "Error desconegut"
-    return json_answer(result, 500)
+    save_file_to_process(fullname, email, model_name)
+    logging.debug("Saved file {0}".format(fullname))
+    Usage().log(model_name, 0, datetime.timedelta(), 'file')
+    return json_answer([])
 
 
 def _bad_request(explanation):
