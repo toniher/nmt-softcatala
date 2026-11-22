@@ -18,9 +18,8 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-from flask import Flask, request, Response
+from flask import Flask, request
 from flask_cors import CORS
-import json
 import datetime
 from nmt_sc.ctranslate import CTranslate
 from usage import Usage
@@ -37,6 +36,7 @@ from engineselector import select_model, available_pairs, resolve_engine
 from languages import langpair_to_iso639_3, language_name
 
 app = Flask(__name__)
+app.json.sort_keys = False  # Flask sorts keys by default; keep insertion order
 CORS(app)
 
 MODELS = '/srv/models/'
@@ -161,7 +161,7 @@ def apertium_translate_process(values):
     result['responseStatus'] = 200
     result['responseData'] = responseData
     result['time'] = str(time_used)
-    return json_answer(result)
+    return result
 
 @app.route('/stats/', methods=['GET'])
 def stats():
@@ -169,12 +169,12 @@ def stats():
         requested = request.args.get('date')
         date_requested = datetime.datetime.strptime(requested, '%Y-%m-%d')
     except Exception as e:
-        return json_answer({}, 400)
+        return {}, 400
 
     usage = Usage()
     result = usage.get_stats(date_requested)
 
-    return json_answer(result)
+    return result
 
 
 @app.route('/version/', methods=['GET'])
@@ -186,7 +186,7 @@ def version_api():
     for model in ENGINES[engine].values():
         result[model.get_model_name()] = model.get_model_description()
 
-    return json_answer(result)
+    return result
 
 def _allowed_file(filename):
     ALLOWED_EXTENSIONS = ['txt', 'po']
@@ -227,17 +227,12 @@ def upload_file():
     save_file_to_process(fullname, email, model_name)
     logging.debug("Saved file {0}".format(fullname))
     Usage().log(model_name, 0, datetime.timedelta(), 'file')
-    return json_answer([])
+    return []
 
 
 def _bad_request(explanation):
-    return json_answer({"status": "error", "code": 400, "message": "Bad Request", "explanation": explanation}, 400)
+    return {"status": "error", "code": 400, "message": "Bad Request", "explanation": explanation}, 400
 
-
-def json_answer(data, status = 200):
-    json_data = json.dumps(data, indent=4, separators=(',', ': '))
-    resp = Response(json_data, mimetype='application/json', status = status)
-    return resp
 
 @app.route('/listLanguageNames', methods=['GET'])
 def list_language_names():
@@ -249,7 +244,7 @@ def list_language_names():
         name = language_name(language, locale)
         if name:
             result[language] = name
-    return json_answer(result, 200)
+    return result
 
 @app.route('/listPairs', methods=['GET'])
 def list_pairs():
@@ -266,7 +261,7 @@ def list_pairs():
 
     result['responseStatus'] = 200
     result['responseData'] = responseData
-    return json_answer(result)
+    return result
 
 
 if __name__ == '__main__':
