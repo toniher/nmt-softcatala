@@ -72,5 +72,22 @@ class TestBatchFilesDB(unittest.TestCase):
         records = len(records_org) - len(db.select())
         self.assertEqual(1, records)
 
+    def test_select_drops_malformed_record(self):
+        db = self._create_db_object()
+        db.create(self.FILENAME, self.EMAIL, self.MODEL_NAME)
+        malformed = db.create(self.FILENAME, "a@b.c\nx", self.MODEL_NAME)
+
+        records = db.select()
+        self.assertEqual(1, len(records))
+        self.assertEqual(self.EMAIL, records[0].email)
+        self.assertFalse(os.path.exists(malformed))
+
+    def test_select_ignores_in_progress_record(self):
+        db = self._create_db_object()
+        with open(os.path.join(self.ENTRIES, "x" + db.TMP_SUFFIX), "w") as fh:
+            fh.write(self.FILENAME)
+
+        self.assertEqual([], db.select())
+
 if __name__ == '__main__':
     unittest.main()

@@ -18,9 +18,11 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
+import contextlib
 import logging
 import logging.handlers
 import os
+import subprocess
 from batchfilesdb import BatchFilesDB
 import time
 import smtplib
@@ -118,29 +120,30 @@ def main():
     db = BatchFilesDB()
 
     while True:
-        batchfiles = db.select()
-        for batchfile in batchfiles:
+        for batchfile in db.select():
             source_file = batchfile.filename
-            print(source_file)
             translated_file = source_file + "-translated.txt"
+            try:
+                if _is_po_file(source_file):
+                    command = 'model_to_po'
+                    attachment = True
+                else:
+                    command = 'model_to_txt'
+                    truncate_file(source_file)
+                    attachment = False
 
-            if _is_po_file(source_file):
-                command = 'model_to_po'
-                attachment = True
-            else:
-                command = 'model_to_txt'
-                truncate_file(source_file)
-                attachment = False
-
-            cmd = "{0} -f {1} -t {2} -m {3} -x {4}".format(command, source_file,
-                   translated_file, batchfile.model_name, TRANSLATION_MODELS)
-
-            logging.debug("Run {0}".format(cmd))
-            os.system(cmd)
-            send_email(translated_file, batchfile.email, attachment)
-            db.delete(batchfile.filename_dbrecord)
-            os.remove(source_file)
-            os.remove(translated_file)
+                cmd = [command, '-f', source_file, '-t', translated_file,
+                       '-m', batchfile.model_name, '-x', TRANSLATION_MODELS]
+                logging.debug(f"Run {cmd}")
+                subprocess.run(cmd, check=True)
+                send_email(translated_file, batchfile.email, attachment)
+            except Exception as e:
+                logging.error(f"Error processing {source_file}: {e}")
+            finally:
+                # Always drop the job so a failing one is not retried forever.
+                for path in (batchfile.filename_dbrecord, source_file, translated_file):
+                    with contextlib.suppress(FileNotFoundError):
+                        os.remove(path)
 
         time.sleep(10)
 

@@ -17,6 +17,7 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
+import logging
 import os
 import uuid
 from collections import namedtuple
@@ -28,22 +29,37 @@ class BatchFilesDB():
 
     ENTRIES = '/srv/data/entries'
     SEPARATOR = "\t"
+    TMP_SUFFIX = ".tmp"
 
     def create(self, filename, email, model_name):
         os.makedirs(self.ENTRIES, exist_ok=True)
         filename_dbrecord = os.path.join(self.ENTRIES, str(uuid.uuid4()))
-        with open(filename_dbrecord, "w") as fh:
+        # Write then rename so select() never sees a half-written record.
+        with open(filename_dbrecord + self.TMP_SUFFIX, "w") as fh:
             fh.write(self.SEPARATOR.join([filename, email, model_name]))
+        os.rename(filename_dbrecord + self.TMP_SUFFIX, filename_dbrecord)
 
         return filename_dbrecord
 
     def _read_record(self, filename_dbrecord):
         with open(filename_dbrecord, "r") as fh:
-            return BatchFile(filename_dbrecord, *fh.readline().split(self.SEPARATOR)[:3])
+            fields = fh.readline().split(self.SEPARATOR)
+        return BatchFile(filename_dbrecord, *fields) if len(fields) == 3 else None
 
     def select(self):
         os.makedirs(self.ENTRIES, exist_ok=True)
-        return [self._read_record(os.path.join(self.ENTRIES, name)) for name in os.listdir(self.ENTRIES)]
+        records = []
+        for name in os.listdir(self.ENTRIES):
+            if name.endswith(self.TMP_SUFFIX):
+                continue
+            path = os.path.join(self.ENTRIES, name)
+            record = self._read_record(path)
+            if record:
+                records.append(record)
+            else:
+                logging.error(f"Dropping malformed batch record {path}")
+                self.delete(path)
+        return records
 
     def delete(self, filename):
         os.remove(filename)

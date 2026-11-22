@@ -149,9 +149,11 @@ def apertium_translate_process(values):
     translate_calls += 1
     start_time = datetime.datetime.now()
 
-    text = None
-    text = values['q']
-    langpair = values['langpair']
+    text = values.get('q')
+    langpair = values.get('langpair')
+    if text is None or not langpair:
+        return _bad_request("Cal especificar els paràmetres 'q' i 'langpair'")
+
     engine = values.get('engine')
     savetext = 'savetext' in values and values['savetext'] == True
 
@@ -233,7 +235,7 @@ def save_file_to_process(filename, email, model_name):
 def upload_file():
     file = request.files['file'] if 'file' in request.files else ""
     email = request.values['email'] if 'email' in request.values else ""
-    model_name = request.values['model_name']
+    model_name = request.values.get('model_name', '')
 
     if model_name not in ENGINES[DEFAULT_ENGINE]:
         return _bad_request("No podem traduir en aquest parell de llengües")
