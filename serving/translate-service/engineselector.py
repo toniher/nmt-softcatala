@@ -17,6 +17,18 @@
 it can be unit-tested without the service's runtime dependencies."""
 
 
+def resolve_engine(engines, default_engine, engine):
+    """Requested engine name, or the default when none/unknown is requested."""
+    return engine if engine in engines else default_engine
+
+
+def available_pairs(engines, default_engine, engine):
+    """Sorted language pairs select_model can serve for the requested engine
+    (its own pairs plus the default-engine fallback)."""
+    engine = resolve_engine(engines, default_engine, engine)
+    return sorted(set(engines[engine]) | set(engines[default_engine]))
+
+
 def select_model(engines, default_engine, languages, engine):
     """Return the translation model for a language pair within the requested
     engine, falling back to the default engine when the requested engine has no
@@ -27,7 +39,7 @@ def select_model(engines, default_engine, languages, engine):
     languages: ISO 639-3 pair, e.g. "eng-cat"
     engine: requested engine name (may be None/unknown)
     """
-    engine = engine if engine in engines else default_engine
+    engine = resolve_engine(engines, default_engine, engine)
     model = engines[engine].get(languages)
     if model is None and engine != default_engine:
         model = engines[default_engine].get(languages)

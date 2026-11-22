@@ -67,6 +67,12 @@ class SrxSegmenter:
 
         return segments, whitespaces
 
+def _java_quotes_to_python(pattern: str) -> str:
+    """SRX rules are Java regexes; Python's regex has no \\Q...\\E literal quoting
+    (current regex rejects it; 2021.x silently read it as the letters Q/E)."""
+    return regex.sub(r'\\Q(.*?)(?:\\E|$)', lambda m: regex.escape(m.group(1)), pattern)
+
+
 def _add_softcatala_rules(rules):
     rules["English"]["breaks"].append(["\n", #Before
                                       ""] # After
@@ -109,7 +115,8 @@ def parse(srx_filepath: str) -> Dict[str, Dict[str, List[Tuple[str, Optional[str
             afterbreak = rule.find('ns:afterbreak', namespaces=namespaces)
             afterbreak_text = '' if afterbreak.text is None else afterbreak.text
 
-            rule_holder.append((beforebreak_text, afterbreak_text))
+            rule_holder.append((_java_quotes_to_python(beforebreak_text),
+                                _java_quotes_to_python(afterbreak_text)))
 
         rules[rule_name] = current_rule
 

@@ -13,7 +13,7 @@
 # Lesser General Public License for more details.
 
 import unittest
-from engineselector import select_model
+from engineselector import select_model, available_pairs
 
 DEFAULT = "softcatala"
 
@@ -45,6 +45,15 @@ class SelectModelTest(unittest.TestCase):
     def test_pair_absent_everywhere_returns_none(self):
         model = select_model(self._engines(), DEFAULT, "xxx-yyy", "aina")
         self.assertIsNone(model)
+
+    def test_available_pairs_default(self):
+        self.assertEqual(["deu-cat", "eng-cat"], available_pairs(self._engines(), DEFAULT, None))
+
+    def test_available_pairs_aina_includes_fallback_and_own_pairs(self):
+        engines = self._engines()
+        engines["aina"]["spa-cat"] = "aina-spa-cat"
+        self.assertEqual(["deu-cat", "eng-cat", "spa-cat"], available_pairs(engines, DEFAULT, "aina"))
+        self.assertEqual(["deu-cat", "eng-cat"], available_pairs(engines, DEFAULT, None))
 
 
 if __name__ == "__main__":

@@ -103,7 +103,7 @@ class TestGenderBiasDetection(unittest.TestCase):
     def test_bias_words(self):
         bias = GenderBiasDetection(self.terms_file)
         self.assertEqual(
-            {"accountant", "administrator"},
+            ["administrator", "accountant"],
             bias.get_words("You are an administrator or an accountant."),
         )
 

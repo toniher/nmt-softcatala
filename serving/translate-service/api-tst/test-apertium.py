@@ -66,6 +66,13 @@ class TestApertium(TestCase):
         self.assertEqual(self.OK, status)
         self.assertEqual("Com ", translation[:4])
 
+    def test_translate_get_catalan_source(self):
+        # Catalan source goes through different SRX segmentation rules than English
+        response = requests.get(f"{self.URL}{self.TRANSLATE}?langpair=ca|en&q=Bon+dia...+Com+est%C3%A0s%3F")
+
+        self.assertEqual(self.OK, response.status_code)
+        self.assertEqual("Good morning", response.json()['responseData']['translatedText'][:12])
+
     def test_translate_get(self):
 
         text = urllib.parse.quote_plus(self.SOURCE.encode('utf-8'))

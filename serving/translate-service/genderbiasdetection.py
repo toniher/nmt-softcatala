@@ -44,13 +44,13 @@ class GenderBiasDetection:
         self.terms = GenderBiasTermsLoader.load_terms(terms_file_path)
 
     def get_words(self, sentence):
-        words = set()
+        words = []  # list, not set: keep source order so the message is deterministic
 
         translator = str.maketrans("", "", string.punctuation)
         for word in sentence.split():
             word = word.translate(translator).lower()
             if word in self.terms and word not in words:
-                words.add(word)
+                words.append(word)
 
         return words
 

@@ -31,8 +31,10 @@ import uuid
 import logging
 import logging.handlers
 import psutil
+import threading
 from genderbiasdetection import GenderBiasDetectionFactory
-from engineselector import select_model
+from engineselector import select_model, available_pairs, resolve_engine
+from languages import langpair_to_iso639_3, language_name
 
 app = Flask(__name__)
 CORS(app)
@@ -46,17 +48,9 @@ UPLOAD_FOLDER = '/srv/data/files/'
 DEFAULT_ENGINE = "softcatala"
 ENGINES = {"softcatala": {}, "aina": {}}
 
-LANGUAGE_ALIASES = {
-    "eng-cat": ["en|cat", "en|ca", "eng|ca", "eng|cat"],
-    "cat-eng": ["cat|en", "ca|en", "ca|eng", "cat|eng"],
-    "deu-cat": ["de|cat", "de|ca", "deu|ca", "deu|cat"],
-    "cat-deu": ["cat|de", "ca|de", "ca|deu", "cat|deu"],
-    "fra-cat": ["fr|cat", "fr|ca", "fra|ca", "fra|cat"],
-    "cat-fra": ["cat|fr", "ca|fr", "ca|fra", "cat|fra"],
-    "por-cat": ["pt|cat", "pt|ca", "por|ca", "por|cat"],
-    "cat-por": ["cat|pt", "ca|pt", "ca|por", "cat|por"],
-}
-
+# Per-worker stats (gunicorn runs several workers; /health reports its own pid's numbers).
+# Guarded by a lock because each worker serves requests from several threads.
+stats_lock = threading.Lock()
 translate_calls = 0
 total_seconds = 0
 translate_chars = 0
@@ -99,31 +93,17 @@ def health_get():
     rss = psutil.Process(os.getpid()).memory_info().rss // 1024 ** 2
     health['id'] = os.getpid()
     health['rss'] = f"{rss} MB"
-    health['average_time_per_request'] = total_seconds / translate_calls if translate_calls else 0
-    health['translate_calls'] = translate_calls
-    health['words_per_second'] = total_words / total_seconds if total_seconds else 0
-    health['average_chars'] = translate_chars // translate_calls if translate_calls else 0
+    with stats_lock:
+        health['average_time_per_request'] = total_seconds / translate_calls if translate_calls else 0
+        health['translate_calls'] = translate_calls
+        health['words_per_second'] = total_words / total_seconds if total_seconds else 0
+        health['average_chars'] = translate_chars // translate_calls if translate_calls else 0
     return health
 
 # This should become /translate once front calls the right API endpoint
 @app.route('/translate/', methods=['POST'])
 def translate_api():
     return apertium_translate_process(request.form)
-
-def _convert_apertium_languages_aliases_to_iso639_3(langpair):
-    languages = langpair.replace("|", "-")
-    for key, value in LANGUAGE_ALIASES.items():
-        if langpair in value:
-            return key
-
-    return languages
-
-def get_language_name(language):
-    translations = {
-        "eng": "anglès",
-        "eus": "basc",
-    }
-    return translations.get(language, f"'{language}'")
 
 def _get_bias_message_if_needed(languages, text, result):
     try:
@@ -132,9 +112,9 @@ def _get_bias_message_if_needed(languages, text, result):
             bias_words = bias_detector.get_words(text)
             if len(bias_words) > 0:
                 source_language = languages[0:3]
-                language_name = get_language_name(source_language)
+                name = language_name(source_language, "ca") or f"'{source_language}'"
                 words = ', '.join(bias_words)
-                msg = f'Atenció: tingueu present que el text original en {language_name} conté substantius que poden designar '
+                msg = f'Atenció: tingueu present que el text original en {name} conté substantius que poden designar '
                 msg += f'persones sense marca de gènere, com ara «{words}». Adapteu-ne la traducció si és necessari.'
                 result['message'] = msg
     except Exception as e:
@@ -153,7 +133,7 @@ def apertium_translate_process(values):
         return _bad_request("Cal especificar els paràmetres 'q' i 'langpair'")
 
     engine = values.get('engine')
-    languages = _convert_apertium_languages_aliases_to_iso639_3(langpair)
+    languages = langpair_to_iso639_3(langpair)
 
     openNMT = select_model(ENGINES, DEFAULT_ENGINE, languages, engine)
     if openNMT is None:
@@ -169,10 +149,11 @@ def apertium_translate_process(values):
     usage = Usage()
     usage.log(languages, words, time_used, 'form')
 
-    translate_calls += 1
-    total_seconds += (time_used).total_seconds()
-    total_words += words
-    translate_chars += len(text)
+    with stats_lock:
+        translate_calls += 1
+        total_seconds += time_used.total_seconds()
+        total_words += words
+        translate_chars += len(text)
 
     logging.debug(f"/translate - time {time_used} - langpair: {langpair} - words: {words}")
     responseData = {}
@@ -200,8 +181,9 @@ def stats():
 def version_api():
 
     result = {}
+    engine = resolve_engine(ENGINES, DEFAULT_ENGINE, request.args.get('engine'))
 
-    for model in ENGINES[DEFAULT_ENGINE].values():
+    for model in ENGINES[engine].values():
         result[model.get_model_name()] = model.get_model_description()
 
     return json_answer(result)
@@ -260,9 +242,13 @@ def json_answer(data, status = 200):
 @app.route('/listLanguageNames', methods=['GET'])
 def list_language_names():
     languages = request.args.get('languages', '').split()
+    locale = request.args.get('locale', 'en')
 
-    names = {'cat': 'Catalan', 'eng': 'English'}
-    result = {language: names[language] for language in languages if language in names}
+    result = {}
+    for language in languages:
+        name = language_name(language, locale)
+        if name:
+            result[language] = name
     return json_answer(result, 200)
 
 @app.route('/listPairs', methods=['GET'])
@@ -271,7 +257,7 @@ def list_pairs():
     result = {}
     responseData = []
 
-    for pair in ENGINES[DEFAULT_ENGINE].keys():
+    for pair in available_pairs(ENGINES, DEFAULT_ENGINE, request.args.get('engine')):
         src, trg = pair.split("-")
 
         pair = { "sourceLanguage": src,

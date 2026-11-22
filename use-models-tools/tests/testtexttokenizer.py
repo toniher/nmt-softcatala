@@ -69,5 +69,19 @@ class TestTextTokenizer(unittest.TestCase):
         self.assertEqual("Not now.", strings[2])
         self.assertEqual(True, translate[2])
 
+    def test_all_srx_rules_compile(self):
+        import regex
+        from nmt_sc.texttokenizer import rules
+        for language, rule in rules.items():
+            for before, after in rule['breaks'] + rule['non_breaks']:
+                regex.compile('({})({})'.format(before, after))
+
+    def test_tokenize_catalan_ellipsis(self):
+        tokenizer = TextTokenizer()
+        strings, translate = tokenizer.tokenize("Bon dia... Com estàs?", "Catalan")
+
+        self.assertEqual(["Bon dia...", " ", "Com estàs?"], strings)
+        self.assertEqual([True, False, True], translate)
+
 if __name__ == '__main__':
     unittest.main()
