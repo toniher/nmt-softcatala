@@ -18,10 +18,10 @@ before_script:
   - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
 
 tests:
-  image: python:3.12.9-slim-bookworm
+  image: python:3.12.16-slim-bookworm
   before_script:
     - apt-get update && apt-get install make gcc git -y
-    - pip install nose2
+    - pip install nose2==0.16.0
   stage: tests
   script:
     - pip install -r use-models-tools/requirements.txt

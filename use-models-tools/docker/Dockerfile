@@ -1,4 +1,4 @@
-FROM python:3.12.9-slim-bookworm
+FROM python:3.12.16-slim-bookworm
 
 WORKDIR /srv
 RUN --mount=type=bind,source=use-models-tools,target=/src,rw \

@@ -1,2 +1,2 @@
-nose2==0.15
-requests==2.32
+nose2==0.16.0
+requests==2.34.2
