@@ -77,18 +77,14 @@ class CTranslate():
 
     def _get_sentence_tokenizer_language(self, model_name):
         lang = re.match(self.LANGUAGE_MATCH, model_name).groups()[0]
-        lang = lang[:2]
 
-        choices = {'ca': 'Catalan', 'en': 'English', 'de' : 'German', 'fr' : 'French', 'sp' : 'Spanish', 'it' : 'Italian',
-                  'nl' : 'Dutch', 'po' : 'Portuguese', 'jp': 'Japanese', 'gl': "Galician",
-                  "oc": "Catalan", ## No Occitan support, Catalan rules probably the best for now
-                  "sw": "Danish" ## Our best option today
-                  }
+        # ISO 639-3 source language -> SRX rule set in segment.srx
+        choices = {'cat': 'Catalan', 'eng': 'English', 'deu': 'German', 'fra': 'French', 'spa': 'Spanish',
+                   'ita': 'Italian', 'nld': 'Dutch', 'por': 'Portuguese', 'jpn': 'Japanese', 'glg': 'Galician',
+                   'oci': 'Catalan',  # no Occitan rules; Catalan is closest
+                   'swe': 'Danish'}   # no Swedish rules; Danish is closest
 
-        if lang in choices:
-            return choices[lang]
-        else:
-            return "Generic"
+        return choices.get(lang, "Generic")
 
     def _normalize_input_string(self, result):
         result = unicodedata.normalize('NFC', result)

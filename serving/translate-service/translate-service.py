@@ -264,12 +264,8 @@ def list_pairs():
     return result
 
 
-if __name__ == '__main__':
-#    app.debug = True
-    init_logging('translate-service.log')
-    load_models()
-    app.run()
+init_logging('translate-service.log')
+load_models()
 
-if __name__ != '__main__':
-    load_models()
-    init_logging('translate-service.log')
+if __name__ == '__main__':  # local dev; production imports the module via gunicorn
+    app.run(port=8700)
