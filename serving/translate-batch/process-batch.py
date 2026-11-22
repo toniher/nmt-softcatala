@@ -39,47 +39,44 @@ def init_logging(logfile):
         handlers=[logging.handlers.RotatingFileHandler(logfile, maxBytes=1024*1024, backupCount=1),
                   logging.StreamHandler()])
 
+SENDER_EMAIL = "serveis@softcatala.org"
+SUBJECT = "Traducció de Softcatalà"
+FAILURE_TEXT = ("No hem pogut traduir el fitxer que ens heu enviat. Comproveu que sigui un fitxer "
+                "de text (.txt) o PO (.po) vàlid i torneu-ho a provar més tard.")
+
+
+def _send(email, message):
+    message["Subject"] = SUBJECT
+    message["From"] = SENDER_EMAIL
+    message["To"] = email
+    with smtplib.SMTP("mail.scnet", 25) as server:
+        server.sendmail(SENDER_EMAIL, email, message.as_string())
+
+
 def send_email(translated_file, email, attachment):
+    message = MIMEMultipart("alternative")
+    if attachment:
+        with open(translated_file, mode='rb') as file:
+            translation = file.read()
+
+        message.attach(MIMEText("Aquí teniu la traducció que heu demanat", "plain"))
+        part = MIMEApplication(translation, Name="ca.po")
+        part['Content-Disposition'] = 'attachment; filename=ca.po'
+        message.attach(part)
+    else:
+        with open(translated_file, encoding='utf-8', mode='r') as file:
+            message.attach(MIMEText(file.read(), "plain"))
+
+    _send(email, message)
+
+
+def send_failure_email(email):
+    """Tell the user the job failed, so they are not left waiting for a translation that never comes."""
     try:
-        port = 25
-        sender_email = "serveis@softcatala.org"
-
-        with smtplib.SMTP("mail.scnet", port) as server:
-            message = MIMEMultipart("alternative")
-            message["Subject"] = "Traducció de Softcatalà"
-            message["From"] = sender_email
-            message["To"] = email
-
-            if attachment:
-
-                with open(translated_file, mode='rb') as file:
-                    translation = file.read()
-
-                attachment_name = 'ca.po'
-                part1 = MIMEText("Aquí teniu la traducció que heu demanat", "plain")
-                message.attach(part1)
-
-                part = MIMEApplication(translation, Name="ca.po")
-                part['Content-Disposition'] = f'attachment; filename={attachment_name}'
-                message.attach(part)
-
-            else:
-                with open(translated_file, encoding='utf-8', mode='r') as file:
-                    translation = file.read()
-
-                part1 = MIMEText(translation, "plain")
-                message.attach(part1)
-
-            server.sendmail(sender_email, email, message.as_string())
+        _send(email, MIMEText(FAILURE_TEXT, "plain"))
     except Exception as e:
-        msg = "Error '{0}' sending to {1}".format(e, email)
-        logging.error(msg)
+        logging.error(f"Error sending failure notice to {email}: {e}")
 
-MAX_SIZE = 8192 * 1024
-
-def truncate_file(filename):
-    if os.path.getsize(filename) > MAX_SIZE:
-        os.truncate(filename, MAX_SIZE)
 
 def _is_po_file(filename):
 
@@ -113,6 +110,32 @@ def _is_po_file(filename):
     return False
 
 
+def process_job(batchfile):
+    source_file = batchfile.filename
+    translated_file = source_file + "-translated.txt"
+    try:
+        if _is_po_file(source_file):
+            command = 'model_to_po'
+            attachment = True
+        else:
+            command = 'model_to_txt'
+            attachment = False
+
+        cmd = [command, '-f', source_file, '-t', translated_file,
+               '-m', batchfile.model_name, '-x', TRANSLATION_MODELS]
+        logging.debug(f"Run {cmd}")
+        subprocess.run(cmd, check=True)
+        send_email(translated_file, batchfile.email, attachment)
+    except Exception as e:
+        logging.error(f"Error processing {source_file}: {e}")
+        send_failure_email(batchfile.email)
+    finally:
+        # Always drop the job so a failing one is not retried forever.
+        for path in (batchfile.filename_dbrecord, source_file, translated_file):
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(path)
+
+
 def main():
 
     print("Process batch files to translate")
@@ -121,29 +144,7 @@ def main():
 
     while True:
         for batchfile in db.select():
-            source_file = batchfile.filename
-            translated_file = source_file + "-translated.txt"
-            try:
-                if _is_po_file(source_file):
-                    command = 'model_to_po'
-                    attachment = True
-                else:
-                    command = 'model_to_txt'
-                    truncate_file(source_file)
-                    attachment = False
-
-                cmd = [command, '-f', source_file, '-t', translated_file,
-                       '-m', batchfile.model_name, '-x', TRANSLATION_MODELS]
-                logging.debug(f"Run {cmd}")
-                subprocess.run(cmd, check=True)
-                send_email(translated_file, batchfile.email, attachment)
-            except Exception as e:
-                logging.error(f"Error processing {source_file}: {e}")
-            finally:
-                # Always drop the job so a failing one is not retried forever.
-                for path in (batchfile.filename_dbrecord, source_file, translated_file):
-                    with contextlib.suppress(FileNotFoundError):
-                        os.remove(path)
+            process_job(batchfile)
 
         time.sleep(10)
 

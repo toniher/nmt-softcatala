@@ -38,6 +38,23 @@ def read_parameters():
     return options.model_name, options.input_file, options.translated_file, options.models_path, options.n_threads
 
 
+def read_lines(filename):
+    '''Lines of a text file, without line endings. UTF-8 (with or without BOM) is expected; files
+    that are not valid UTF-8 are read as Windows-1252, the usual encoding of Catalan text saved by
+    Windows tools, instead of silently dropping their accented letters.'''
+    with open(filename, mode='rb') as f:
+        data = f.read()
+    try:
+        text = data.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        logging.warning(f"{filename} is not valid UTF-8; reading it as Windows-1252")
+        text = data.decode('cp1252', errors='replace')
+    lines = text.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+    if lines[-1] == '':
+        lines.pop()
+    return lines
+
+
 def _get_words_per_second(start_time, words):
     time = datetime.datetime.now() - start_time
     total_seconds = time.total_seconds()
@@ -70,11 +87,10 @@ def main():
             logging.error("Processing: {0}".format(src))
             return None
 
-    with open(input_filename, encoding='utf-8', mode='r', errors='ignore') as tf_en,\
-         open(translated_file, encoding='utf-8', mode='w') as tf_ca,\
+    sources = read_lines(input_filename)
+    with open(translated_file, encoding='utf-8', mode='w') as tf_ca,\
          ThreadPoolExecutor(n_threads) as executor:
 
-        sources = [line.replace('\n', '') for line in tf_en]
         translated = 0
         errors = 0
         words = 0

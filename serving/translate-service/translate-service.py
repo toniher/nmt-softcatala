@@ -44,8 +44,8 @@ MODELS = '/srv/models/'
 MODELS_AINA = '/srv/models-aina/'
 UPLOAD_FOLDER = '/srv/data/files/'
 
-# translate-batch truncates files to 8 MB (process-batch.py MAX_SIZE); reject bigger uploads
-# up front instead. The small margin covers the multipart envelope around the file.
+# Upload cap; translate-batch relies on it (it no longer truncates files itself).
+# The small margin covers the multipart envelope around the file.
 MAX_UPLOAD_BYTES = 8192 * 1024
 app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_BYTES + 64 * 1024
 # One long text ties up a translator for minutes; longer texts belong in /translate_file/.
