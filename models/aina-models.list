@@ -6,8 +6,9 @@
 # the translation service uses when engine=aina is requested (see
 # serving/translate-service/translate-service.py).
 #
-# AINA models are published on HuggingFace as CTranslate2 models (config.json,
-# model.bin, shared_vocabulary.json) plus a SentencePiece model (spm.model).
+# AINA models are published on HuggingFace as CTranslate2 models (model.bin, a
+# shared_vocabulary.json or .txt, and usually config.json) plus a SentencePiece
+# model (spm.model).
 # download-aina-models.sh normalizes them into the same on-disk layout the
 # Softcatalà models use, so nmt_sc.ctranslate.CTranslate loads them unchanged.
 #

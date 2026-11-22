@@ -7,7 +7,8 @@
 # AINA models are already CTranslate2 + SentencePiece, so they are normalized
 # into the same on-disk layout the Softcatalà models use and loaded by the same
 # nmt_sc.ctranslate.CTranslate class:
-#     <pair>/ctranslate2/{config.json,model.bin,shared_vocabulary.json}
+#     <pair>/ctranslate2/{config.json,model.bin,shared_vocabulary.json|.txt}
+#       (config.json is optional; some repos, e.g. es-ca, ship a .txt vocabulary instead)
 #     <pair>/tokenizer/sp_m.model
 #     <pair>/metadata/model_description.txt   (generated here)
 #
@@ -81,7 +82,9 @@ docker run --rm \
 import hashlib, os, re, shutil
 from huggingface_hub import HfApi, snapshot_download
 
-FILES = ["config.json", "model.bin", "shared_vocabulary.json", "spm.model"]
+# Files used, in fingerprint order. Repos differ: es-ca and ca-es have no config.json and
+# ship shared_vocabulary.txt; CTranslate2 loads either layout.
+FILES = ["config.json", "model.bin", "shared_vocabulary.json", "shared_vocabulary.txt", "spm.model"]
 api = HfApi()
 
 def installed(pair):
@@ -104,7 +107,10 @@ for line in os.environ["ENTRIES"].splitlines():
             continue
         raise
     blobs = {s.rfilename: s.blob_id for s in info.siblings}
-    fingerprint = hashlib.sha1(" ".join(blobs[f] for f in FILES).encode()).hexdigest()[:12]
+    files = [f for f in FILES if f in blobs]
+    if not {"model.bin", "spm.model"} <= set(files) or not any(f.startswith("shared_vocabulary") for f in files):
+        raise SystemExit(f"{repo}: not a CTranslate2 + SentencePiece model (found {sorted(blobs)})")
+    fingerprint = hashlib.sha1(" ".join(blobs[f] for f in files).encode()).hexdigest()[:12]
     have = installed(pair)
     if os.path.isdir(pair) and have == fingerprint:
         print(f"skip   {pair} ({fingerprint}, up to date)")
@@ -116,10 +122,10 @@ for line in os.environ["ENTRIES"].splitlines():
     tmp, stage = f"/tmp/{pair}", ".staging"
     shutil.rmtree(tmp, ignore_errors=True)
     shutil.rmtree(stage, ignore_errors=True)
-    snapshot_download(repo_id=repo, revision=info.sha, local_dir=tmp, allow_patterns=FILES)
+    snapshot_download(repo_id=repo, revision=info.sha, local_dir=tmp, allow_patterns=files)
     for d in ("ctranslate2", "tokenizer", "metadata"):
         os.makedirs(f"{stage}/{d}")
-    for f in FILES[:3]:
+    for f in files[:-1]:  # all but spm.model
         shutil.move(f"{tmp}/{f}", f"{stage}/ctranslate2/{f}")
     shutil.move(f"{tmp}/spm.model", f"{stage}/tokenizer/sp_m.model")
     with open(f"{stage}/metadata/model_description.txt", "w") as f:

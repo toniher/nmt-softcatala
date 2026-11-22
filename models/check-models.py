@@ -21,7 +21,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 URL = os.environ.get("MODELS_URL", "https://www.softcatala.org/pub/softcatala/opennmt/models/2022-11-22")
 MODELS_DIR = os.environ.get("MODELS_DIR", "models-data")
 MODELS_AINA_DIR = os.environ.get("MODELS_AINA_DIR", "models-data-aina")
-AINA_FILES = ["config.json", "model.bin", "shared_vocabulary.json", "spm.model"]
+# Same list and order as download-aina-models.sh; only the files a repo has are used.
+AINA_FILES = ["config.json", "model.bin", "shared_vocabulary.json", "shared_vocabulary.txt", "spm.model"]
 
 
 def fetch(url):
@@ -85,7 +86,7 @@ def check_softcatala():
 def aina_fingerprint(repo, revision):
     info = json.loads(fetch(f"https://huggingface.co/api/models/{repo}/revision/{revision}?blobs=true"))
     blobs = {s["rfilename"]: s["blobId"] for s in info["siblings"]}
-    return hashlib.sha1(" ".join(blobs[f] for f in AINA_FILES).encode()).hexdigest()[:12]
+    return hashlib.sha1(" ".join(blobs[f] for f in AINA_FILES if f in blobs).encode()).hexdigest()[:12]
 
 
 def check_aina():
