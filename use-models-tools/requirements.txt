@@ -1,5 +1,5 @@
 polib==1.2.0
 sentencepiece==0.2.0
-ctranslate2==4.5.0
+ctranslate2==4.9.1
 lxml
 regex==2026.11.19
