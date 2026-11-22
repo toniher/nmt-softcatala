@@ -78,8 +78,9 @@ cat-oci; `_` and `>=` in jpn models), plus cat-jpn, whose output is poor overall
 Marker choice measured: `{87719<n>` where the model knows `{`, else `87719<n>`. The digits-only
 form beat `(`, `%`, `/`, `XYZ` and `0x` prefixes on the 14 models lacking `{` (124/131 kept).
 
-Found on the way, not fixed here: the AINA `es-ca` / `ca-es` repos ship `shared_vocabulary.txt`
-and no `config.json`, so `download-aina-models.sh` cannot install them (it never could).
+Found on the way and fixed separately on `master` (c7c4ab3, merged into this branch): the AINA
+`es-ca` / `ca-es` repos ship `shared_vocabulary.txt` and no `config.json`, which
+`download-aina-models.sh` could not install. It now uses whichever of the known files a repo has.
 
 ## Fix A — inference side, `use-models-tools/nmt_sc` (no retraining)
 
