@@ -30,6 +30,14 @@ make download-models MODELS="eng-cat cat-eng"
 
 There is one directory per language pair (e.g. `eng-cat`). The download runs inside a throwaway container, so Docker is all you need. Pairs already up to date are skipped, so you can re-run the command safely.
 
+To keep the models elsewhere (another disk, a shared path), set `MODELS_DIR` for Softcatalà models and `MODELS_AINA_DIR` for AINA ones. Every `make` target (download, check, run) and `compose.yml` reads them, so export them once in your shell or pass them to each command:
+
+```sh
+export MODELS_DIR=/srv/nmt/models MODELS_AINA_DIR=/srv/nmt/models-aina
+make download-models
+make docker-run-all-services   # or plain: docker compose up -d
+```
+
 ## Updating the models
 
 `models/models.list` pins one dated zip per language pair. To see whether newer models have been published, and whether the installed ones match the manifest:

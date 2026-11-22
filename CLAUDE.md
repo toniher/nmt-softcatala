@@ -35,6 +35,8 @@ make download-models MODELS="eng-cat cat-eng"   # only selected pairs
 make download-aina-models                       # all pairs in the AINA manifest
 make download-aina-models MODELS="eng-cat cat-eng"   # only selected pairs
 #   MODELS_AINA_DIR=... overrides the target dir
+#   MODELS_DIR / MODELS_AINA_DIR are honoured by every make target and by compose.yml (${MODELS_DIR:-./models-data});
+#   the Makefile makes them absolute, since docker -v treats a relative path as a named volume
 
 # 2. Build the (code-only) images
 make build-all                          # use-models-tools, translate-service (+test image), translate-batch
@@ -47,7 +49,7 @@ make docker-build-translate-batch
 make docker-run-translate-service       # run translate-service on :8700
 make docker-run-translate-service-test  # run the test image variant
 make docker-run-translate-batch         # run the batch worker (needs the traductor-files volume)
-make docker-run-all-services            # docker compose up -d (compose.yml): both services detached, models-data mounted read-only
+make docker-run-all-services            # docker compose up -d (compose.yml): both services detached, models dirs mounted read-only
 make check-models                       # newer published models? installed ones out of date?
 ```
 

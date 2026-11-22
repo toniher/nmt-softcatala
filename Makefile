@@ -1,5 +1,8 @@
 MODELS_DIR ?= $(PWD)/models-data
 MODELS_AINA_DIR ?= $(PWD)/models-data-aina
+# docker -v needs absolute paths (a relative one becomes a named volume)
+override MODELS_DIR := $(abspath $(MODELS_DIR))
+override MODELS_AINA_DIR := $(abspath $(MODELS_AINA_DIR))
 
 build-all: docker-build-use-models-tools docker-build-translate-service docker-build-translate-service-test docker-build-translate-batch
 
@@ -39,7 +42,7 @@ docker-run-translate-service-test:
 	docker run -it --rm -p 8700:8700 -v "$(MODELS_DIR)":/srv/models:ro -v "$(MODELS_AINA_DIR)":/srv/models-aina:ro translate-service-test;
 
 docker-run-all-services:
-	docker compose up -d;
+	MODELS_DIR="$(MODELS_DIR)" MODELS_AINA_DIR="$(MODELS_AINA_DIR)" docker compose up -d;
 
 generate-bias-terms:
 	cd gender-bias-detection/ &&  python3 extract-terms.py
