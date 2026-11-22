@@ -21,6 +21,7 @@
 from flask import Flask, request
 from flask_cors import CORS
 import datetime
+import time
 from nmt_sc.ctranslate import CTranslate
 from usage import Usage
 from batchfilesdb import BatchFilesDB
@@ -42,6 +43,13 @@ CORS(app)
 MODELS = '/srv/models/'
 MODELS_AINA = '/srv/models-aina/'
 UPLOAD_FOLDER = '/srv/data/files/'
+
+# translate-batch truncates files to 8 MB (process-batch.py MAX_SIZE); reject bigger uploads
+# up front instead. The small margin covers the multipart envelope around the file.
+MAX_UPLOAD_BYTES = 8192 * 1024
+app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_BYTES + 64 * 1024
+# One long text ties up a translator for minutes; longer texts belong in /translate_file/.
+MAX_QUERY_CHARS = 20000
 
 # Translation engines (model families), each a dict keyed by ISO 639-3 pair.
 # "softcatala" is the default and the fallback for any other engine.
@@ -125,12 +133,16 @@ def _get_bias_message_if_needed(languages, text, result):
 def apertium_translate_process(values):
     global translate_calls, translate_chars, total_seconds, total_words
 
-    start_time = datetime.datetime.now()
+    start_time = time.perf_counter()  # monotonic: unaffected by clock changes
 
     text = values.get('q')
     langpair = values.get('langpair')
     if text is None or not langpair:
         return _bad_request("Cal especificar els paràmetres 'q' i 'langpair'")
+
+    if len(text) > MAX_QUERY_CHARS:
+        return _bad_request(f"El text és massa llarg (màxim {MAX_QUERY_CHARS} caràcters). "
+                            "Per a textos més llargs, feu servir la traducció de fitxers.")
 
     engine = values.get('engine')
     languages = langpair_to_iso639_3(langpair)
@@ -144,7 +156,7 @@ def apertium_translate_process(values):
     result = {}
     result = _get_bias_message_if_needed(languages, text, result)
 
-    time_used = datetime.datetime.now() - start_time
+    time_used = datetime.timedelta(seconds=time.perf_counter() - start_time)
     words = len(text.split(' '))
     usage = Usage()
     usage.log(languages, words, time_used, 'form')
@@ -166,10 +178,9 @@ def apertium_translate_process(values):
 @app.route('/stats/', methods=['GET'])
 def stats():
     try:
-        requested = request.args.get('date')
-        date_requested = datetime.datetime.strptime(requested, '%Y-%m-%d')
-    except Exception as e:
-        return {}, 400
+        date_requested = datetime.datetime.strptime(request.args.get('date', ''), '%Y-%m-%d')
+    except ValueError:
+        return _bad_request("Cal especificar el paràmetre 'date' amb el format AAAA-MM-DD")
 
     usage = Usage()
     result = usage.get_stats(date_requested)
@@ -200,14 +211,14 @@ def save_file_to_process(filename, email, model_name):
 
 @app.route('/translate_file/', methods=['POST'])
 def upload_file():
-    file = request.files['file'] if 'file' in request.files else ""
-    email = request.values['email'] if 'email' in request.values else ""
+    file = request.files.get('file')
+    email = request.values.get('email', '')
     model_name = request.values.get('model_name', '')
 
     if model_name not in ENGINES[DEFAULT_ENGINE]:
         return _bad_request("No podem traduir en aquest parell de llengües")
 
-    if file == "" or file.filename == "":
+    if file is None or not file.filename:
         return _bad_request("No s'ha especificat el fitxer")
 
     if email == "":
@@ -232,6 +243,12 @@ def upload_file():
 
 def _bad_request(explanation):
     return {"status": "error", "code": 400, "message": "Bad Request", "explanation": explanation}, 400
+
+
+@app.errorhandler(413)
+def _too_large(error):
+    return {"status": "error", "code": 413, "message": "Payload Too Large",
+            "explanation": f"El fitxer és massa gran (màxim {MAX_UPLOAD_BYTES // (1024 * 1024)} MB)"}, 413
 
 
 @app.route('/listLanguageNames', methods=['GET'])

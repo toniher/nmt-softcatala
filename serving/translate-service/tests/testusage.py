@@ -54,8 +54,11 @@ class TestUsage(unittest.TestCase):
 
     def setUp(self):
         filename = UsageTest().FILE
-        if os.path.exists(filename):
-            os.remove(filename)
+        for name in (filename, filename + ".lock", filename + ".tmp"):
+            if os.path.exists(name):
+                os.remove(name)
+
+    tearDown = setUp
 
     def readLog(self):
         with open(UsageTest().FILE, "r") as temp:
@@ -137,6 +140,29 @@ class TestUsage(unittest.TestCase):
 
         stats = usage.get_stats(date)
         self.assertEqual(1, stats["eng-cat"]["files"])
+
+    def test_get_stats_skips_malformed_line(self):
+        date = datetime.datetime(2016, 10, 5)
+        usage = UsageTest()
+        usage.rotate = False
+        usage._set_time_now(date)
+        usage._log()
+        with open(usage.FILE, "a") as f:
+            f.write("garbage line\n2016-10-05 00:00:00\teng-cat\tnot-a-number\t1.0\tform\n")
+        usage._log()
+
+        stats = usage.get_stats(date)
+        self.assertEqual(2, stats["eng-cat"]["calls"])
+        self.assertEqual(20400, stats["eng-cat"]["words"])
+
+    def test_rotate_drops_malformed_first_line(self):
+        usage = UsageTest()
+        with open(usage.FILE, "w") as f:
+            f.write("garbage line\n")
+        usage._set_time_now(datetime.datetime(2016, 10, 9))
+        usage._log()
+
+        self.assertEqual(['2016-10-09 00:00:00\teng-cat\t10200\t9.0\tform\n'], self.readLog())
 
 
 if __name__ == '__main__':

@@ -88,6 +88,33 @@ class TestApertium(TestCase):
         self.assertIn("en basc", response.json()['message'])
         self.assertIn("«sailburuak»", response.json()['message'])
 
+    def test_translate_post_text_too_long(self):
+        response = requests.post(self.URL + self.TRANSLATE + "/", data={"langpair": "en|ca", "q": "a" * 20001})
+
+        self.assertEqual(400, response.status_code)
+        self.assertIn("massa llarg", response.json()['explanation'])
+
+    def test_translate_file_too_large(self):
+        files = {"file": ("big.txt", b"a" * (9 * 1024 * 1024))}
+        response = requests.post(self.URL + "/translate_file/", files=files,
+                                 data={"email": "test@example.org", "model_name": "eng-cat"})
+
+        self.assertEqual(413, response.status_code)
+        self.assertIn("massa gran", response.json()['explanation'])
+
+    def test_stats_bad_date(self):
+        for query in ("", "?date=22-11-2026"):
+            response = requests.get(self.URL + "/stats/" + query)
+
+            self.assertEqual(400, response.status_code)
+            self.assertIn("AAAA-MM-DD", response.json()['explanation'])
+
+    def test_translate_file_missing_file(self):
+        response = requests.post(self.URL + "/translate_file/", data={"email": "test@example.org", "model_name": "eng-cat"})
+
+        self.assertEqual(400, response.status_code)
+        self.assertEqual("No s'ha especificat el fitxer", response.json()['explanation'])
+
     def test_translate_get(self):
 
         text = urllib.parse.quote_plus(self.SOURCE.encode('utf-8'))

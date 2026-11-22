@@ -99,11 +99,25 @@ function sendFile()
             {
                 alert("D'aquí a una estona rebreu el fitxer traduït per correu electrònic");
             }
+            else if (xmlHttp.status == 0)
+            {
+                // Connection dropped, e.g. the server rejected an oversized upload before reading it
+                alert("No s'ha pogut enviar el fitxer");
+            }
             else
             {
                 json = JSON.parse(xmlHttp.responseText);
                 alert(json['explanation'] || json['error']);
             }
+        }
+
+        // Same limit as the server (MAX_UPLOAD_BYTES); checked here because browsers may not
+        // show the server's 413 if it closes the connection mid-upload.
+        var file = document.querySelector('#form-id input[type=file]').files[0];
+        if (file && file.size > 8 * 1024 * 1024)
+        {
+            alert("El fitxer és massa gran (màxim 8 MB)");
+            return;
         }
 
         var formData = new FormData(document.getElementById('form-id'));

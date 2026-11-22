@@ -19,12 +19,18 @@
 # Boston, MA 02111-1307, USA.
 
 import datetime
+import fcntl
 import logging
+import os
 
 '''
     This class keeps a log of the usage of a service
         - For usage write a line on the file with the date
         - At the number of days specified cleans old entries
+
+    Several gunicorn workers (processes) and their threads write the same file, so
+    appends and rotation are serialized with an flock on a sidecar lock file; rotation
+    writes a temp file and renames it, so readers never see a half-written file.
 '''
 class Usage(object):
 
@@ -36,19 +42,22 @@ class Usage(object):
         self.FILE = filename
 
     def _get_time_now(self):
-        return datetime.datetime.utcnow()
+        # Naive UTC, matching the timestamps already in the file (utcnow() is deprecated since 3.12)
+        return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
 
     def get_date_from_line(self, line):
          return line.split("\t", 1)[0]
 
     def log(self, model_name, words, time_used, _type):
         try:
-            with open(self.FILE, "a+") as file_out:
-                current_time = self._get_time_now().strftime('%Y-%m-%d %H:%M:%S')
-                file_out.write('{0}\t{1}\t{2}\t{3}\t{4}\n'.format(current_time, model_name, words, time_used.total_seconds(), _type))
+            with open(self.FILE + ".lock", "w") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)  # released when the lock file is closed
+                with open(self.FILE, "a+") as file_out:
+                    current_time = self._get_time_now().strftime('%Y-%m-%d %H:%M:%S')
+                    file_out.write('{0}\t{1}\t{2}\t{3}\t{4}\n'.format(current_time, model_name, words, time_used.total_seconds(), _type))
 
-            if self.rotate and self._is_old_line(self._read_first_line()):
-                self._rotate_file()
+                if self.rotate and self._is_old_line(self._read_first_line()):
+                    self._rotate_file()
         except Exception as exception:
             logging.error("log. Error:" + str(exception))
             pass
@@ -58,16 +67,23 @@ class Usage(object):
         try:
             with open(self.FILE, "r") as file_in:
                 for line in file_in:
-                    date_component, model_component, words_component, time_component, _type = line.strip().split("\t")
+                    try:
+                        date_component, model_component, words_component, time_component, _type = line.strip().split("\t")
+                        line_datetime = datetime.datetime.strptime(date_component, '%Y-%m-%d %H:%M:%S')
+                        words = int(words_component)
+                        seconds = float(time_component)
+                    except ValueError:
+                        logging.warning(f"get_stats. Skipping malformed line: {line!r}")
+                        continue
+
                     stats = results.setdefault(model_component, {"calls": 0, "words": 0, "time_used": 0, "files": 0})
-                    line_datetime = datetime.datetime.strptime(date_component, '%Y-%m-%d %H:%M:%S')
                     if line_datetime.date() == date_requested.date():
                         if _type == 'file':
                             stats["files"] += 1
                         else:
                             stats["calls"] += 1
-                            stats["words"] += int(words_component)
-                            stats["time_used"] += float(time_component)
+                            stats["words"] += words
+                            stats["time_used"] += seconds
 
         except Exception as exception:
             logging.error("get_stats. Error:" + str(exception))
@@ -86,13 +102,17 @@ class Usage(object):
         if line is None:
             return False
 
-        line = self.get_date_from_line(line)
-        line_datetime = datetime.datetime.strptime(line, '%Y-%m-%d %H:%M:%S')
+        try:
+            line_datetime = datetime.datetime.strptime(self.get_date_from_line(line), '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            return True  # malformed: let rotation drop it rather than block rotation forever
         return line_datetime < self._get_time_now() - datetime.timedelta(days = self.DAYS_TO_KEEP)
 
     def _rotate_file(self):
         with open(self.FILE, "r") as f:
             lines = [line for line in f if not self._is_old_line(line)]
 
-        with open(self.FILE, "w") as f:
+        tmp = self.FILE + ".tmp"
+        with open(tmp, "w") as f:
             f.writelines(lines)
+        os.replace(tmp, self.FILE)
