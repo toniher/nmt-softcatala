@@ -1,23 +1,20 @@
-FROM python:3.12.9-slim-bookworm AS copied_files
+FROM python:3.12.9-slim-bookworm AS build
 
-COPY serving/translate-batch/requirements.txt /srv/
-COPY serving/translate-batch/*.py /srv/
-COPY serving/translate-batch/docker/entry-point.sh /srv/
-
-FROM python:3.12.9-slim-bookworm
-
-RUN apt-get update -y && apt-get upgrade -y && apt-get install gcc git -y
-RUN apt-get install python3-pip -y --no-install-recommends
-RUN pip3 install --upgrade pip && pip3 install --upgrade setuptools
-
-COPY --from=copied_files /srv/ /srv/
-
-# Models are mounted at runtime under /srv/models (see compose.yml / Makefile).
+# gcc is only needed to build regex==2021.4.4 (no Python 3.12 wheel); it stays in this stage.
+RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv
 COPY use-models-tools/ /use-models-tools/
-RUN pip3 install -r requirements.txt
-RUN rm -r -f use-models-tools/
+COPY serving/translate-batch/requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+FROM python:3.12.9-slim-bookworm
+
+COPY --from=build /install /usr/local
+
+WORKDIR /srv
+COPY serving/translate-batch/*.py serving/translate-batch/docker/entry-point.sh ./
+
+# Models are mounted at runtime under /srv/models (see compose.yml / Makefile).
 
 ENTRYPOINT ["/srv/entry-point.sh"]
-#ENTRYPOINT bash

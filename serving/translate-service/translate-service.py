@@ -26,6 +26,7 @@ from nmt_sc.ctranslate import CTranslate
 from usage import Usage
 from batchfilesdb import BatchFilesDB
 import os
+import re
 import uuid
 import logging
 import logging.handlers
@@ -242,6 +243,11 @@ def upload_file():
 
     if email == "":
         return _bad_request("No s'ha especificat el correu")
+
+    # Whitespace/control chars would corrupt the tab/line-based batch record
+    # (crash-looping translate-batch) and allow e-mail header injection.
+    if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        return _bad_request("El correu no és vàlid")
 
     if file and _allowed_file(file.filename):
         filename = uuid.uuid4().hex
