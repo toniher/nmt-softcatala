@@ -1,8 +1,10 @@
 # Default set of AINA (Projecte Aina / BSC) translation models to download.
 #
-# One "<huggingface_repo_id> <pair>" per line. The pair is the directory name
-# the model is normalized into and the key the translation service uses when
-# engine=aina is requested (see serving/translate-service/translate-service.py).
+# One "<huggingface_repo_id> <pair> [<commit>]" per line. The optional third
+# column pins a full HuggingFace commit sha; without it the latest (main) is
+# used. The pair is the directory name the model is normalized into and the key
+# the translation service uses when engine=aina is requested (see
+# serving/translate-service/translate-service.py).
 #
 # AINA models are published on HuggingFace as CTranslate2 models (config.json,
 # model.bin, shared_vocabulary.json) plus a SentencePiece model (spm.model).

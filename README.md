@@ -28,7 +28,19 @@ make download-models
 make download-models MODELS="eng-cat cat-eng"
 ```
 
-There is one directory per language pair (e.g. `eng-cat`). The download runs inside a throwaway container, so Docker is all you need. Pairs already downloaded are skipped, so you can re-run the command safely.
+There is one directory per language pair (e.g. `eng-cat`). The download runs inside a throwaway container, so Docker is all you need. Pairs already up to date are skipped, so you can re-run the command safely.
+
+## Updating the models
+
+`models/models.list` pins one dated zip per language pair. To see whether newer models have been published, and whether the installed ones match the manifest:
+
+```sh
+make check-models
+```
+
+To update a pair, change its line in `models/models.list` to the new zip name, run `make download-models` again and restart the services (they load the models at startup). The download replaces any pair whose installed date differs from the manifest and skips the rest.
+
+AINA models work the same way. Their version is a fingerprint of the model files on HuggingFace. A line in `models/aina-models.list` follows the latest release unless a commit is added as a third column to pin it.
 
 ## Optional: AINA models
 

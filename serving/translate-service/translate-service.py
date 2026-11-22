@@ -69,7 +69,8 @@ def _load_engine(engine, models_path):
         print(f"No models for engine '{engine}' at {models_path}, skipping")
         return
 
-    model_directories = next(os.walk(models_path))[1]
+    # Hidden dirs are download leftovers (.staging, .old-<pair>), not models.
+    model_directories = [d for d in next(os.walk(models_path))[1] if not d.startswith('.')]
     for model_dir in model_directories:
         print(f"[{engine}] Model dir: {model_dir}")
         ENGINES[engine][model_dir] = CTranslate(f"{models_path}", model_dir)

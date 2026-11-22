@@ -9,6 +9,13 @@ download-models:
 download-aina-models:
 	MODELS="$(MODELS)" MODELS_AINA_DIR="$(MODELS_AINA_DIR)" ./models/download-aina-models.sh
 
+# Compares models.list / aina-models.list with what is published and installed (changes nothing).
+check-models:
+	mkdir -p "$(MODELS_DIR)" "$(MODELS_AINA_DIR)"
+	docker run --rm -v "$(PWD)/models":/srv/manifests:ro -v "$(MODELS_DIR)":/srv/models:ro \
+	  -v "$(MODELS_AINA_DIR)":/srv/models-aina:ro -e MODELS_URL -e MODELS_DIR=/srv/models \
+	  -e MODELS_AINA_DIR=/srv/models-aina python:3.12-slim python -I /srv/manifests/check-models.py
+
 docker-build-use-models-tools:
 	docker build -t use-models-tools . -f use-models-tools/docker/Dockerfile;
 

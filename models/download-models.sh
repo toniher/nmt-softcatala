@@ -9,7 +9,11 @@
 #   MODELS_URL=https://...        base download URL
 #
 # Downloading and unzipping run inside a throwaway Debian container, so the
-# host needs only Docker (no wget/unzip). Already-present pairs are skipped.
+# host needs only Docker (no wget/unzip). A pair already present is skipped when
+# the Date: in its metadata/model_description.txt matches the manifest filename,
+# and replaced otherwise. To update a model, change its date in models.list (see
+# `make check-models`), re-run this script, and restart the services: they load
+# the models at startup.
 
 set -euo pipefail
 
@@ -62,19 +66,30 @@ docker run --rm \
         apt-get update -qq
         apt-get install -y -qq --no-install-recommends wget unzip ca-certificates >/dev/null
         cd /srv/models
+        # Even when a download fails: drop the staging dir and hand ownership back to the host user.
+        trap "rm -rf .staging; chown -R \"\$HOST_UID:\$HOST_GID\" /srv/models" EXIT
         for f in $FILES; do
             pair="${f:0:7}"
-            if [ -d "$pair" ]; then
-                echo "skip  $pair (already present)"
+            want="${f:8:10}"
+            have="$(sed -n "s/^Date: *//p" "$pair/metadata/model_description.txt" 2>/dev/null | head -1)"
+            if [ -d "$pair" ] && [ "$have" = "$want" ]; then
+                echo "skip   $pair ($want, up to date)"
                 continue
             fi
-            echo "fetch $f"
-            wget -q "$URL/$f"
-            unzip -q -o "$f" -x "*/tensorflow/*"
-            rm -f "$f"
+            if [ -d "$pair" ]; then
+                echo "update $pair ${have:-unknown} -> $want"
+            else
+                echo "fetch  $f"
+            fi
+            # Unzip into a staging dir first: a failed download leaves the old model in place.
+            rm -rf .staging && mkdir .staging
+            wget -q -O ".staging/$f" "$URL/$f"
+            unzip -q -o ".staging/$f" -d .staging -x "*/tensorflow/*"
+            rm -rf ".old-$pair"
+            [ -d "$pair" ] && mv "$pair" ".old-$pair"
+            mv ".staging/$pair" "$pair"
+            rm -rf ".old-$pair" .staging
         done
-        # Hand ownership back to the host user so files stay manageable.
-        chown -R "$HOST_UID:$HOST_GID" /srv/models
     '
 
 echo "Done."
