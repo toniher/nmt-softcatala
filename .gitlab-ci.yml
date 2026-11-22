@@ -3,9 +3,10 @@ variables:
   MODELS_URL: "https://www.softcatala.org/pub/softcatala/opennmt/models/2022-11-22"
 
 
-image: docker:latest
+# Pinned to a major version: Dockerfiles need BuildKit (RUN --mount); bump deliberately.
+image: docker:29
 services:
-  - docker:dind
+  - docker:29-dind
 
 stages:
   - tests
@@ -70,6 +71,8 @@ translate-batch:
     - export IMAGE_NAME=$REPO_NAME:$CI_COMMIT_REF_NAME
     - export DOCKER_PATH=serving/translate-batch/docker/Dockerfile
     - docker build -f $DOCKER_PATH --tag $IMAGE_NAME .
+    # Smoke test (no models needed): worker module loads and the CLIs it shells out to are on PATH.
+    - docker run --rm --entrypoint sh $IMAGE_NAME -c 'python -c "import runpy; runpy.run_path(\"process-batch.py\")" && model_to_txt --help >/dev/null && model_to_po --help >/dev/null'
     - docker push $IMAGE_NAME
 
 use-models-tools:
@@ -79,4 +82,6 @@ use-models-tools:
     - export IMAGE_NAME=$REPO_NAME:$CI_COMMIT_REF_NAME
     - export DOCKER_PATH=use-models-tools/docker/Dockerfile
     - docker build -f $DOCKER_PATH --tag latest --tag $IMAGE_NAME .
+    # Smoke test (no models needed): library imports and both CLIs start.
+    - docker run --rm --entrypoint sh $IMAGE_NAME -c 'python -c "import nmt_sc.ctranslate" && model_to_txt --help >/dev/null && model_to_po --help >/dev/null'
     - docker push $IMAGE_NAME
